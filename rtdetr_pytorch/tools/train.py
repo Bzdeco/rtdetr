@@ -1,9 +1,14 @@
-"""by lyuwenyu
+"""by lyuwenyu and Bzdeco
 """
+from powerlines.data.seed import set_global_seeds
 
-import os 
-import sys 
+# TODO: set torch generator and seed worker seeds
+set_global_seeds()
+
+import os
+import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+
 import argparse
 
 import src.misc.dist as dist 
@@ -35,13 +40,12 @@ def main(args, ) -> None:
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', '-c', type=str, )
-    parser.add_argument('--resume', '-r', type=str, )
-    parser.add_argument('--tuning', '-t', type=str, )
-    parser.add_argument('--test-only', action='store_true', default=False,)
-    parser.add_argument('--amp', action='store_true', default=False,)
+    parser.add_argument('--config', '-c', type=str)
+    parser.add_argument('--resume', '-r', type=str)
+    parser.add_argument('--tuning', '-t', type=str)
+    parser.add_argument('--test-only', action='store_true', default=False)
+    parser.add_argument('--amp', action='store_true', default=False)
 
     args = parser.parse_args()
 

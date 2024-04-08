@@ -17,7 +17,7 @@ class BaseSolver(object):
         
         self.cfg = cfg 
 
-    def setup(self, ):
+    def setup(self):
         '''Avoid instantiating unnecessary classes 
         '''
         cfg = self.cfg

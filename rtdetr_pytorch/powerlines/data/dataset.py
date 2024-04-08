@@ -99,7 +99,6 @@ class PolesDetectionDataset:
                 brightness=(0.875, 1.125), contrast=(0.5, 1.5), hue=(-0.05, 0.05), saturation=(0.5, 1.5), p=0.5
             ),
             transforms.RandomIoUCrop(min_scale=1/8, max_scale=1, min_aspect_ratio=1, max_aspect_ratio=1, trials=40),
-            # TODO: adjust min scale
             transforms.SanitizeBoundingBoxes(min_size),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.Resize(size=[640, 640], interpolation=InterpolationMode.BILINEAR),
@@ -197,7 +196,6 @@ class PolesDetectionDataset:
         )
 
     def _should_sample_positive_sample(self, cached_frame: Dict[str, Any]):
-        # TODO: set random seeds
         should_sample_positive = random.random() <= self.sampling.positive_sample_prob
         has_positive_samples = cached_frame["has_positive_samples"]
         has_negative_samples = cached_frame["has_negative_samples"]
