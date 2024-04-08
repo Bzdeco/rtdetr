@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="49093898-e209-4cd8-8e06-b57aed938486" name="jumphost">
+        <fileTransfer accessType="SFTP" host="jumphost" port="22" sshConfigId="faf2a581-e6fa-40cb-8806-a8e4fe9cc198" sshConfig="gwizdala@jumphost:22 agent" authAgent="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
