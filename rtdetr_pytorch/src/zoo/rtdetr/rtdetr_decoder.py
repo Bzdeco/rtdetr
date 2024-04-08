@@ -36,7 +36,6 @@ class MLP(nn.Module):
         return x
 
 
-
 class MSDeformableAttention(nn.Module):
     def __init__(self, embed_dim=256, num_heads=8, num_levels=4, num_points=4,):
         """
@@ -61,7 +60,6 @@ class MSDeformableAttention(nn.Module):
 
         self._reset_parameters()
 
-
     def _reset_parameters(self):
         # sampling_offsets
         init.constant_(self.sampling_offsets.weight, 0)
@@ -82,7 +80,6 @@ class MSDeformableAttention(nn.Module):
         init.constant_(self.value_proj.bias, 0)
         init.xavier_uniform_(self.output_proj.weight)
         init.constant_(self.output_proj.bias, 0)
-
 
     def forward(self,
                 query,

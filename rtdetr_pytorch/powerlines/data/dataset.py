@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 import torch
 import torchvision.transforms.v2 as transforms
+from torch.utils.data import Dataset
 from torchvision import tv_tensors
 from torchvision.transforms import InterpolationMode
 
@@ -75,13 +76,13 @@ def load_complete_frame(
     }
 
 
-class PolesDetectionDataset:
+class PolesDetectionDataset(Dataset):
     def __init__(
         self,
         data_source: DataSourceConfig,
         loading: LoadingConfig,
         sampling: SamplingConfig,
-        num_frames: int,
+        num_frames: Optional[int] = None,
         num_workers: int = 16
     ):
         self.data_source = data_source
@@ -140,20 +141,19 @@ class PolesDetectionDataset:
             patch_centers_data = frame["negative_sampling_centers_data"]
 
         y, x = sample_patch_center(patch_centers_data, self.sampling.non_sky_bias)
-        image_patch = self._extract_patch(frame["image"], y, x)
+        input = self._extract_patch(frame["image"], y, x)
         bounding_boxes = self._extract_bounding_boxes(frame["annotation"], y, x)
         poles_distance_mask_patch = self._poles_distance_mask_patch(frame, y, x)
 
-        dataset_item = {
-            "image": image_patch,
-            "bbox": bounding_boxes,
+        targets = {
+            "boxes": bounding_boxes,
             "labels": torch.as_tensor([0] * len(bounding_boxes)),
             "poles_distance_mask": poles_distance_mask_patch,
-            "idx": idx,
+            "image_id": idx,
             "metadata": {"timestamp": frame["timestamp"]},
         }
 
-        return self.augmentations(dataset_item)
+        return self.augmentations(input, targets)
 
     def _extract_patch(self, input: Optional[np.ndarray], y: int, x: int) -> Optional[tv_tensors.Image]:
         if input is None:

@@ -8,14 +8,15 @@ from datetime import datetime
 from pathlib import Path 
 from typing import Dict
 
+from powerlines import factory
+from src.data import DataLoader
 from src.misc import dist
 from src.core import BaseConfig
 
 
 class BaseSolver(object):
     def __init__(self, cfg: BaseConfig) -> None:
-        
-        self.cfg = cfg 
+        self.cfg = cfg
 
     def setup(self):
         '''Avoid instantiating unnecessary classes 
@@ -40,8 +41,7 @@ class BaseSolver(object):
         self.output_dir = Path(cfg.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-
-    def train(self, ):
+    def train(self):
         self.setup()
         self.optimizer = self.cfg.optimizer
         self.lr_scheduler = self.cfg.lr_scheduler
@@ -51,16 +51,23 @@ class BaseSolver(object):
             print(f'Resume checkpoint from {self.cfg.resume}')
             self.resume(self.cfg.resume)
 
-        self.train_dataloader = dist.warp_loader(self.cfg.train_dataloader, \
-            shuffle=self.cfg.train_dataloader.shuffle)
-        self.val_dataloader = dist.warp_loader(self.cfg.val_dataloader, \
-            shuffle=self.cfg.val_dataloader.shuffle)
+        train_dataset = factory.train_dataset()
+        self.train_dataloader = DataLoader(
+            train_dataset,
+            batch_size=self.cfg.train_dataloader.batch_size,
+            drop_last=self.cfg.train_dataloader.drop_last,
+            collate_fn=self.cfg.train_dataloader.collate_fn,
+            pin_memory=self.cfg.train_dataloader.pin_memory,
+            num_workers=self.cfg.train_dataloader.num_workers,
+        )
+        # self.val_dataloader = dist.warp_loader(self.cfg.val_dataloader, \
+        #     shuffle=self.cfg.val_dataloader.shuffle)
 
-
-    def eval(self, ):
+    def eval(self):
         self.setup()
-        self.val_dataloader = dist.warp_loader(self.cfg.val_dataloader, \
-            shuffle=self.cfg.val_dataloader.shuffle)
+        raise NotImplementedError
+        # self.val_dataloader = dist.warp_loader(self.cfg.val_dataloader, \
+        #     shuffle=self.cfg.val_dataloader.shuffle)
 
         if self.cfg.resume:
             print(f'resume from {self.cfg.resume}')
