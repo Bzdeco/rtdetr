@@ -15,11 +15,7 @@ from typing import Callable, List, Dict
 __all__ = ['BaseConfig', ]
 
 
-
 class BaseConfig(object):
-    # TODO property
-
-
     def __init__(self) -> None:
         super().__init__()
 
@@ -255,10 +251,3 @@ class BaseConfig(object):
     def print_freq(self, n):
         assert isinstance(n, int), 'print_freq must be int'
         self._print_freq = n
-
-
-    # def __repr__(self) -> str:
-    #     pass 
-
-
-

@@ -25,8 +25,8 @@ class DetSolver(BaseSolver):
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print('number of params:', n_parameters)
 
-        base_ds = get_coco_api_from_dataset(self.val_dataloader.dataset)
-        best_stat = {'epoch': -1, }
+        # base_ds = get_coco_api_from_dataset(self.val_dataloader.dataset)
+        # best_stat = {'epoch': -1, }
 
         start_time = time.time()
         for epoch in range(self.last_epoch + 1, args.epoches):
@@ -34,16 +34,21 @@ class DetSolver(BaseSolver):
                 self.train_dataloader.sampler.set_epoch(epoch)
             
             train_stats = train_one_epoch(
-                self.model, self.criterion, self.train_dataloader, self.optimizer, self.device, epoch,
-                args.clip_max_norm, print_freq=args.log_step, ema=self.ema, scaler=self.scaler)
+                self.model,
+                self.criterion,
+                self.train_dataloader,
+                self.optimizer,
+                self.device,
+                epoch,
+                args.clip_max_norm,
+                print_freq=args.log_step,
+                ema=self.ema,
+                scaler=self.scaler)
 
             self.lr_scheduler.step()
             
             if self.output_dir:
-                checkpoint_paths = [self.output_dir / 'checkpoint.pth']
-                # extra checkpoint before LR drop and every 100 epochs
-                if (epoch + 1) % args.checkpoint_step == 0:
-                    checkpoint_paths.append(self.output_dir / f'checkpoint{epoch:04}.pth')
+                checkpoint_paths = [self.output_dir / f'{epoch:03d}.pt']
                 for checkpoint_path in checkpoint_paths:
                     dist.save_on_master(self.state_dict(epoch), checkpoint_path)
 
@@ -86,7 +91,6 @@ class DetSolver(BaseSolver):
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
         print('Training time {}'.format(total_time_str))
-
 
     def val(self):
         self.eval()

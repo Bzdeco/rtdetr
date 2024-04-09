@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict
 
 from powerlines import factory
+from powerlines.logger import create_neptune_run, run_id
 from src.data import DataLoader
 from src.misc import dist
 from src.core import BaseConfig
@@ -17,6 +18,7 @@ from src.core import BaseConfig
 class BaseSolver(object):
     def __init__(self, cfg: BaseConfig) -> None:
         self.cfg = cfg
+        self.run = create_neptune_run("rt-detr-poles")
 
     def setup(self):
         '''Avoid instantiating unnecessary classes 
@@ -38,7 +40,7 @@ class BaseSolver(object):
         self.scaler = cfg.scaler
         self.ema = cfg.ema.to(device) if cfg.ema is not None else None 
 
-        self.output_dir = Path(cfg.output_dir)
+        self.output_dir = Path(f"/scratch/cvlab/home/gwizdala/output/checkpoints/{run_id(self.run)}")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def train(self):
