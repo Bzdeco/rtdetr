@@ -11,13 +11,13 @@ def data_source(subset: str) -> DataSourceConfig:
         complete_frames_root_folder=Path("/scratch/cvlab/home/gwizdala/dataset/processed/daedalean/complete_frames"),
         annotations_path=Path("/scratch/cvlab/home/gwizdala/dataset/daedalean/cable-annotations"),
         data_source_subset=subset,
-        cv_config=DictConfig({})
+        cv_config=DictConfig({"num_folds": 5, "fold": None, "folds_select": None, "parallel": []})
     )
 
 
 def loading() -> LoadingConfig:
     return LoadingConfig(
-        poles_distance_mask=False,
+        poles_distance_mask=True,
         exclusion_area_mask=False
     )
 
@@ -36,7 +36,8 @@ def train_dataset() -> PolesDetectionDataset:
     return PolesDetectionDataset(
         data_source=data_source("train"),
         loading=loading(),
-        sampling=sampling()
+        sampling=sampling(),
+        num_frames=10  # FIXME: remove
     )
 
 

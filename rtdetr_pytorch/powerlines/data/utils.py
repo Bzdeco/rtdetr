@@ -1,15 +1,14 @@
 import math
 import random
 from pathlib import Path
-from typing import List, Optional, Set, Dict, Any, Tuple
+from typing import List, Optional, Set, Dict, Tuple
 
 import numpy as np
 
 from powerlines.data.annotations import ImageAnnotations
-from powerlines.data.config import DataSourceConfig, LoadingConfig
-from powerlines.utils import load_yaml, load_npy
+from powerlines.utils import load_yaml
 
-ROOT_FOLDER = Path(__file__).parents[1]
+ROOT_FOLDER = Path(__file__).parents[2]
 FOLDS = load_yaml(ROOT_FOLDER / "configs/powerlines/folds.yaml")
 SPLITS = load_yaml(ROOT_FOLDER / "configs/powerlines/splits_timestamps.yaml")
 INVALID_MASK_VALUE = np.iinfo(np.uint16).max
@@ -81,29 +80,6 @@ def load_filepaths(data_source_config) -> List[Path]:
         lambda path: data_source_config.belongs_to_subset_frames(path),
         data_source_config.inputs_folder.glob("*")
     )))
-
-
-def load_annotations(data_source_config: DataSourceConfig) -> Dict[int, Any]:
-    fold_annotations = {}
-
-    for frame_annotations in data_source_config.annotations():
-        frame_timestamp = frame_annotations.frame_timestamp()
-        if frame_timestamp in data_source_config.timestamps:
-            fold_annotations[frame_timestamp] = frame_annotations
-
-    return fold_annotations
-
-
-def load_distance_masks(
-    data_source_config: DataSourceConfig, loading_config: LoadingConfig, frame_timestamp: int
-) -> Dict[str, Optional[np.ndarray]]:
-    frame_poles_distance_mask = load_npy(
-        data_source_config.poles_distance_masks_folder / f"{frame_timestamp}.npy"
-    ) if loading_config.poles_distance_mask else None
-
-    return {
-        "poles_distance_mask": frame_poles_distance_mask
-    }
 
 
 def load_filtered_filepaths(data_source_config) -> List[Path]:

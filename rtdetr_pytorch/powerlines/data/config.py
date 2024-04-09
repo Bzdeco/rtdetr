@@ -6,7 +6,7 @@ from omegaconf import DictConfig
 
 from powerlines.data.annotations import parse_annotations
 from powerlines.data.utils import filter_timestamps, train_fold_timestamps, val_fold_timestamps, split_timestamps, \
-    num_background_samples_per_frame
+    num_background_samples_per_frame, sample_index_to_frame_id
 
 
 @dataclass
@@ -24,6 +24,7 @@ class DataSourceConfig:
 
     def __post_init__(self):
         self.inputs_folder = self.complete_frames_root_folder / "images"
+        self.poles_distance_masks_folder = self.complete_frames_root_folder / "poles_distance_masks"
         self.exclusion_zones_distance_masks_folder = self.complete_frames_root_folder / "exclusion_zones_distance_masks"
 
         if self.cv_config.fold is None:  # fixed train-val split

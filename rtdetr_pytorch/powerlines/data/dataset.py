@@ -11,12 +11,35 @@ from torchvision.transforms import InterpolationMode
 
 from powerlines.data.annotations import ImageAnnotations
 from powerlines.data.config import DataSourceConfig, LoadingConfig, SamplingConfig
-from powerlines.data.utils import load_filtered_filepaths, load_annotations, load_distance_masks, num_pole_samples_in_frame, \
-    positive_sampled_patch_centers_data, negative_sampled_patch_centers_data, sample_patch_center
+from powerlines.data.utils import load_filtered_filepaths, num_pole_samples_in_frame, positive_sampled_patch_centers_data, \
+    negative_sampled_patch_centers_data, sample_patch_center
 from powerlines.utils import parallelize, load_npy
 
 
 MAX_DISTANCE_MASK_VALUE = 128
+
+
+def load_annotations(data_source_config: DataSourceConfig) -> Dict[int, Any]:
+    fold_annotations = {}
+
+    for frame_annotations in data_source_config.annotations():
+        frame_timestamp = frame_annotations.frame_timestamp()
+        if frame_timestamp in data_source_config.timestamps:
+            fold_annotations[frame_timestamp] = frame_annotations
+
+    return fold_annotations
+
+
+def load_distance_masks(
+    data_source_config: DataSourceConfig, loading_config: LoadingConfig, frame_timestamp: int
+) -> Dict[str, Optional[np.ndarray]]:
+    frame_poles_distance_mask = load_npy(
+        data_source_config.poles_distance_masks_folder / f"{frame_timestamp}.npy"
+    ) if loading_config.poles_distance_mask else None
+
+    return {
+        "poles_distance_mask": frame_poles_distance_mask
+    }
 
 
 def load_parameters_for_configuration(loaded_frame_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -94,7 +117,7 @@ class PolesDetectionDataset(Dataset):
         self.num_frames = num_frames if num_frames is not None else len(self.filepaths)
 
         # Augmentations from RT-DETR, without ZoomOut, with adjusted min_scale and min_size, and with fixed aspect ratio
-        min_size = 0.5  # min pole width across DDLN dataset
+        min_size = 1  # min pole width across DDLN dataset = 0.5
         self.augmentations = transforms.Compose([
             transforms.RandomPhotometricDistort(
                 brightness=(0.875, 1.125), contrast=(0.5, 1.5), hue=(-0.05, 0.05), saturation=(0.5, 1.5), p=0.5
@@ -103,7 +126,7 @@ class PolesDetectionDataset(Dataset):
             transforms.SanitizeBoundingBoxes(min_size),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.Resize(size=[640, 640], interpolation=InterpolationMode.BILINEAR),
-            transforms.ConvertImageDtype(dtype=torch.float16),
+            transforms.ConvertImageDtype(dtype=torch.float32),
             transforms.SanitizeBoundingBoxes(min_size),
             transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH)
         ])
@@ -121,14 +144,14 @@ class PolesDetectionDataset(Dataset):
         return [self._single_frame_loading_data(frame_id) for frame_id in range(self.num_frames)]
 
     def _single_frame_loading_data(self, frame_id: int) -> Dict[str, Any]:
-        frame_filepath = self.filepaths[frame_id]
-        frame_timestamp = int(frame_filepath.stem)
+        filepath = self.filepaths[frame_id]
+        timestamp = int(filepath.stem)
         return {
             "data_source": self.data_source,
             "loading": self.loading,
             "sampling": self.sampling,
-            "timestamp": frame_timestamp,
-            "annotation": self.annotations[frame_timestamp],
+            "timestamp": timestamp,
+            "annotation": self.annotations[timestamp],
         }
 
     def __getitem__(self, idx: int):
@@ -141,42 +164,43 @@ class PolesDetectionDataset(Dataset):
             patch_centers_data = frame["negative_sampling_centers_data"]
 
         y, x = sample_patch_center(patch_centers_data, self.sampling.non_sky_bias)
-        input = self._extract_patch(frame["image"], y, x)
+        input = tv_tensors.Image(torch.from_numpy(self._extract_patch(frame["image"], y, x)))
         bounding_boxes = self._extract_bounding_boxes(frame["annotation"], y, x)
         poles_distance_mask_patch = self._poles_distance_mask_patch(frame, y, x)
 
         targets = {
             "boxes": bounding_boxes,
             "labels": torch.as_tensor([0] * len(bounding_boxes)),
-            "poles_distance_mask": poles_distance_mask_patch,
-            "image_id": idx,
-            "metadata": {"timestamp": frame["timestamp"]},
         }
 
-        return self.augmentations(input, targets)
+        input_aug, targets_aug = self.augmentations(input, targets)
+        targets_aug["poles_distance_mask"] = torch.from_numpy(poles_distance_mask_patch)
+        targets_aug["labels"] = targets_aug["labels"].long()
 
-    def _extract_patch(self, input: Optional[np.ndarray], y: int, x: int) -> Optional[tv_tensors.Image]:
+        return input_aug, targets_aug
+
+    def _extract_patch(self, input: Optional[np.ndarray], y: int, x: int) -> Optional[np.ndarray]:
         if input is None:
             return None
 
-        return tv_tensors.Image(torch.from_numpy(input[
+        return input[
             ...,
             (y - self.sampling.half_patch_size):(y + self.sampling.half_patch_size),
             (x - self.sampling.half_patch_size):(x + self.sampling.half_patch_size)
-        ]))
+        ]
 
-    def _poles_distance_mask_patch(self, cached_frame: Dict[str, Any], y: int, x: int) -> Optional[tv_tensors.Image]:
+    def _poles_distance_mask_patch(self, cached_frame: Dict[str, Any], y: int, x: int) -> Optional[np.ndarray]:
         poles_distance_mask = self._extract_patch(cached_frame["poles_distance_mask"], y, x)
         if poles_distance_mask is None:
             return None
 
         if np.all(poles_distance_mask > 0):
-            return tv_tensors.Image(torch.from_numpy(np.full(
+            return np.full(
                 (1, self.sampling.patch_size, self.sampling.patch_size),
                 fill_value=MAX_DISTANCE_MASK_VALUE
-            )))
+            )
         else:
-            return tv_tensors.Image(torch.from_numpy(poles_distance_mask))
+            return poles_distance_mask
 
     def _extract_bounding_boxes(self, annotation: ImageAnnotations, y: int, x: int) -> tv_tensors.BoundingBoxes:
         hps = self.sampling.half_patch_size
@@ -190,7 +214,7 @@ class PolesDetectionDataset(Dataset):
                 bounding_boxes.append([x_0, y_0, x_1, y_1])
 
         return tv_tensors.BoundingBoxes(
-            bounding_boxes,
+            bounding_boxes if len(bounding_boxes) > 0 else torch.empty((0, 4)),
             format=tv_tensors.BoundingBoxFormat.XYXY,
             canvas_size=(self.sampling.patch_size,) * 2
         )
