@@ -139,7 +139,7 @@ class TrainPolesDetectionDataset(Dataset):
         sampling: SamplingConfig,
         num_frames: Optional[int] = None,
         with_augmentations: bool = True,
-        num_workers: int = 16
+        num_workers: int = 4
     ):
         self.data_source = data_source
         self.loading = loading

@@ -92,10 +92,8 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
         inputs = inputs.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        # with torch.autocast(device_type=str(device)):
-        #     outputs = model(samples)
-
-        outputs = model(inputs)
+        with torch.autocast(device_type=str(device)):
+            outputs = model(inputs)
 
         # Convert prediction boxes to absolute values
         orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0).to(device)
