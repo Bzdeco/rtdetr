@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from omegaconf import DictConfig
+from torch.utils.data import DataLoader, Dataset
 
 from powerlines.data.config import DataSourceConfig, LoadingConfig, SamplingConfig
 from powerlines.data.dataset import TrainPolesDetectionDataset
@@ -44,3 +45,21 @@ def train_dataset(with_augmentations: bool = True) -> TrainPolesDetectionDataset
 
 def val_dataset() -> None:
     raise NotImplementedError
+
+
+def dataloader(
+    dataset: Dataset,
+    batch_size: int,
+    drop_last: bool,
+    shuffle: bool,
+    num_workers: int
+
+):
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        drop_last=drop_last,
+        shuffle=shuffle,
+        pin_memory=True,
+        num_workers=num_workers,
+    )

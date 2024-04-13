@@ -1,9 +1,6 @@
 '''
 by lyuwenyu
 '''
-import time 
-import json
-import datetime
 from typing import Any, Dict
 
 import neptune
@@ -37,7 +34,7 @@ class DetSolver(BaseSolver):
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print('number of params:', n_parameters)
 
-        for epoch in range(self.last_epoch + 1, args.epoches):
+        for epoch in range(self.last_epoch + 1, args.epochs):
             if dist.is_dist_available_and_initialized():
                 self.train_dataloader.sampler.set_epoch(epoch)
 
@@ -59,13 +56,14 @@ class DetSolver(BaseSolver):
             log_stats(self.run, "train", train_stats)
             self.save_checkpoint(epoch)
 
-            # TODO: implement val dataset
             # Validation metrics
-            model = self.ema.module if self.ema else self.model
-            val_stats = evaluate(
-                model, self.criterion, self.postprocessor, self.val_dataloader, self.device
-            )
-            log_stats(self.run, "val", val_stats)
+            if epoch % 10 == 0:
+                # TODO: implement val dataset
+                model = self.ema.module if self.ema else self.model
+                val_stats = evaluate(
+                    model, self.criterion, self.postprocessor, self.val_dataloader, self.device
+                )
+                log_stats(self.run, "val", val_stats)
 
     def val(self):
         self.eval()

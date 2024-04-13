@@ -20,7 +20,7 @@ def main(args) -> None:
     dist.init_distributed()
 
     assert not all([args.tuning, args.resume]), \
-        'Only support from_scrach or resume or tuning at one time'
+        'Only support from_scratch or resume or tuning at one time'
 
     cfg = YAMLConfig(
         args.config,

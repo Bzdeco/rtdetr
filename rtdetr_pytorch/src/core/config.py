@@ -48,7 +48,7 @@ class BaseConfig(object):
         self.resume :str = None
         self.tuning :str = None
 
-        self.epoches :int = None
+        self.epochs :int = None
         self.last_epoch :int = -1
         self.end_epoch :int = None
 

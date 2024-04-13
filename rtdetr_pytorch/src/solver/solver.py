@@ -2,7 +2,6 @@
 """
 
 import torch 
-import torch.nn as nn 
 
 from datetime import datetime
 from pathlib import Path 
@@ -10,7 +9,6 @@ from typing import Dict
 
 from powerlines import factory
 from powerlines.logger import create_neptune_run, run_id
-from src.data import DataLoader
 from src.misc import dist
 from src.core import BaseConfig
 
@@ -53,34 +51,30 @@ class BaseSolver(object):
             print(f'Resume checkpoint from {self.cfg.resume}')
             self.resume(self.cfg.resume)
 
-        train_dataset = factory.train_dataset()
-        self.train_dataloader = DataLoader(
-            train_dataset,
+        self.train_dataloader = factory.dataloader(
+            factory.train_dataset(),
             batch_size=self.cfg.train_dataloader.batch_size,
             drop_last=self.cfg.train_dataloader.drop_last,
             shuffle=True,
-            collate_fn=self.cfg.train_dataloader.collate_fn,
-            pin_memory=self.cfg.train_dataloader.pin_memory,
-            num_workers=self.cfg.train_dataloader.num_workers,
-        )
-        val_dataset = factory.train_dataset(with_augmentations=False)  # TODO: change to proper validation
-        self.val_dataloader = DataLoader(
-            val_dataset,
-            batch_size=self.cfg.train_dataloader.batch_size,
-            drop_last=False,
-            collate_fn=self.cfg.train_dataloader.collate_fn,
-            pin_memory=self.cfg.train_dataloader.pin_memory,
             num_workers=self.cfg.train_dataloader.num_workers
         )
-
-        # self.val_dataloader = dist.warp_loader(self.cfg.val_dataloader, \
-        #     shuffle=self.cfg.val_dataloader.shuffle)
+        self.val_dataloader = factory.dataloader(
+            factory.train_dataset(with_augmentations=False),  # TODO: change to proper validation
+            batch_size=self.cfg.val_dataloader.batch_size,
+            drop_last=False,
+            shuffle=False,
+            num_workers=self.cfg.val_dataloader.num_workers
+        )
 
     def eval(self):
         self.setup()
-        self.val_dataloader = factory.train_dataset(with_augmentations=False)  # TODO: change to proper validation
-        # self.val_dataloader = dist.warp_loader(self.cfg.val_dataloader, \
-        #     shuffle=self.cfg.val_dataloader.shuffle)
+        self.val_dataloader = factory.dataloader(
+            factory.train_dataset(with_augmentations=False),  # TODO: change to proper validation
+            batch_size=self.cfg.val_dataloader.batch_size,
+            drop_last=False,
+            shuffle=False,
+            num_workers=self.cfg.val_dataloader.num_workers
+        )
 
         if self.cfg.resume:
             print(f'resume from {self.cfg.resume}')
