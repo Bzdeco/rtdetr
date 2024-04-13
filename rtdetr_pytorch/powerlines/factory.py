@@ -38,7 +38,6 @@ def train_dataset(with_augmentations: bool = True) -> TrainPolesDetectionDataset
         data_source=data_source("train"),
         loading=loading(),
         sampling=sampling(),
-        num_frames=10,  # FIXME: remove
         with_augmentations=with_augmentations
     )
 
