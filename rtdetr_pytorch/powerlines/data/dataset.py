@@ -99,13 +99,44 @@ def load_complete_frame(
     }
 
 
-class PolesDetectionDataset(Dataset):
+DETECTOR_INPUT_SIZE = [640, 640]
+MIN_BBOX_SIZE = 1  # min pole width across DDLN dataset = 0.5
+
+
+def train_augmentations():
+    # Augmentations from RT-DETR, without ZoomOut, with adjusted min_scale and min_size, and with fixed aspect ratio
+    return transforms.Compose([
+        transforms.RandomPhotometricDistort(
+            brightness=(0.875, 1.125), contrast=(0.5, 1.5), hue=(-0.05, 0.05), saturation=(0.5, 1.5), p=0.5
+        ),
+        transforms.RandomIoUCrop(min_scale=1/8, max_scale=1, min_aspect_ratio=1, max_aspect_ratio=1, trials=40),
+        transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.Resize(size=DETECTOR_INPUT_SIZE, interpolation=InterpolationMode.BILINEAR),
+        transforms.ConvertImageDtype(dtype=torch.float32),
+        transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
+        transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH)
+    ])
+
+
+def evaluation_augmentations():
+    # Only resizes input and adapts the bounding boxes format
+    return transforms.Compose([
+        transforms.Resize(size=DETECTOR_INPUT_SIZE, interpolation=InterpolationMode.BILINEAR),
+        transforms.ConvertImageDtype(dtype=torch.float32),
+        transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
+        transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH)
+    ])
+
+
+class TrainPolesDetectionDataset(Dataset):
     def __init__(
         self,
         data_source: DataSourceConfig,
         loading: LoadingConfig,
         sampling: SamplingConfig,
         num_frames: Optional[int] = None,
+        with_augmentations: bool = True,
         num_workers: int = 16
     ):
         self.data_source = data_source
@@ -116,20 +147,10 @@ class PolesDetectionDataset(Dataset):
         self.annotations = load_annotations(data_source)
         self.num_frames = num_frames if num_frames is not None else len(self.filepaths)
 
-        # Augmentations from RT-DETR, without ZoomOut, with adjusted min_scale and min_size, and with fixed aspect ratio
-        min_size = 1  # min pole width across DDLN dataset = 0.5
-        self.augmentations = transforms.Compose([
-            transforms.RandomPhotometricDistort(
-                brightness=(0.875, 1.125), contrast=(0.5, 1.5), hue=(-0.05, 0.05), saturation=(0.5, 1.5), p=0.5
-            ),
-            transforms.RandomIoUCrop(min_scale=1/8, max_scale=1, min_aspect_ratio=1, max_aspect_ratio=1, trials=40),
-            transforms.SanitizeBoundingBoxes(min_size),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.Resize(size=[640, 640], interpolation=InterpolationMode.BILINEAR),
-            transforms.ConvertImageDtype(dtype=torch.float32),
-            transforms.SanitizeBoundingBoxes(min_size),
-            transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH)
-        ])
+        if with_augmentations:
+            self.augmentations = train_augmentations()
+        else:
+            self.augmentations = evaluation_augmentations()
 
         self._loading_data = self._frames_loading_data()
         self.cache = parallelize(
@@ -204,14 +225,16 @@ class PolesDetectionDataset(Dataset):
 
     def _extract_bounding_boxes(self, annotation: ImageAnnotations, y: int, x: int) -> tv_tensors.BoundingBoxes:
         hps = self.sampling.half_patch_size
+        patch_x_0 = x - hps
+        patch_y_0 = y - hps
 
         bounding_boxes = []
         for pole in annotation.poles():
             x_pole, y_pole = pole.center_xy()
-            if x - hps <= x_pole < x + hps and y - hps <= y_pole < y + hps:
+            if patch_x_0 <= x_pole < x + hps and patch_y_0 <= y_pole < y + hps:
                 y_0, x_0 = pole.top_left
                 y_1, x_1 = pole.bottom_right
-                bounding_boxes.append([x_0, y_0, x_1, y_1])
+                bounding_boxes.append([x_0 - patch_x_0, y_0 - patch_y_0, x_1 - patch_x_0, y_1 - patch_y_0])
 
         return tv_tensors.BoundingBoxes(
             bounding_boxes if len(bounding_boxes) > 0 else torch.empty((0, 4)),

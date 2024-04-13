@@ -4,14 +4,26 @@ by lyuwenyu
 import time 
 import json
 import datetime
+from typing import Any, Dict
 
-import torch 
+import neptune
 
 from src.misc import dist
-from src.data import get_coco_api_from_dataset
 
 from .solver import BaseSolver
 from .det_engine import train_one_epoch, evaluate
+
+
+def log_stats(run: neptune.Run, subset: str, stats: Dict[str, Any]):
+    for name, value in stats.items():
+        if name.startswith("loss"):
+            if name == "loss":
+                run[f"metrics/{subset}/loss/total"].log(value)
+            else:
+                loss_component_name = name[name.find("_") + 1:]
+                run[f"metrics/{subset}/loss/{loss_component_name}"].log(value)
+        else:
+            run[f"metrics/{subset}/misc/{name}"].log(value)
 
 
 class DetSolver(BaseSolver):
@@ -25,14 +37,11 @@ class DetSolver(BaseSolver):
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print('number of params:', n_parameters)
 
-        # base_ds = get_coco_api_from_dataset(self.val_dataloader.dataset)
-        # best_stat = {'epoch': -1, }
-
-        start_time = time.time()
         for epoch in range(self.last_epoch + 1, args.epoches):
             if dist.is_dist_available_and_initialized():
                 self.train_dataloader.sampler.set_epoch(epoch)
-            
+
+            # Train single epoch
             train_stats = train_one_epoch(
                 self.model,
                 self.criterion,
@@ -44,64 +53,31 @@ class DetSolver(BaseSolver):
                 print_freq=args.log_step,
                 ema=self.ema,
                 scaler=self.scaler)
-
             self.lr_scheduler.step()
-            
-            if self.output_dir:
-                checkpoint_paths = [self.output_dir / f'{epoch:03d}.pt']
-                for checkpoint_path in checkpoint_paths:
-                    dist.save_on_master(self.state_dict(epoch), checkpoint_path)
 
-            # TODO: implement val dataset and evaluation
-            # module = self.ema.module if self.ema else self.model
-            # test_stats, coco_evaluator = evaluate(
-            #     module, self.criterion, self.postprocessor, self.val_dataloader, base_ds, self.device, self.output_dir
-            # )
-            #
-            # for k in test_stats.keys():
-            #     if k in best_stat:
-            #         best_stat['epoch'] = epoch if test_stats[k][0] > best_stat[k] else best_stat['epoch']
-            #         best_stat[k] = max(best_stat[k], test_stats[k][0])
-            #     else:
-            #         best_stat['epoch'] = epoch
-            #         best_stat[k] = test_stats[k][0]
-            # print('best_stat: ', best_stat)
-            #
-            #
-            # log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-            #             **{f'test_{k}': v for k, v in test_stats.items()},
-            #             'epoch': epoch,
-            #             'n_parameters': n_parameters}
-            #
-            # if self.output_dir and dist.is_main_process():
-            #     with (self.output_dir / "log.txt").open("a") as f:
-            #         f.write(json.dumps(log_stats) + "\n")
-            #
-            #     # for evaluation logs
-            #     if coco_evaluator is not None:
-            #         (self.output_dir / 'eval').mkdir(exist_ok=True)
-            #         if "bbox" in coco_evaluator.coco_eval:
-            #             filenames = ['latest.pth']
-            #             if epoch % 50 == 0:
-            #                 filenames.append(f'{epoch:03}.pth')
-            #             for name in filenames:
-            #                 torch.save(coco_evaluator.coco_eval["bbox"].eval,
-            #                         self.output_dir / "eval" / name)
+            # Train metrics and checkpoint
+            log_stats(self.run, "train", train_stats)
+            self.save_checkpoint(epoch)
 
-        total_time = time.time() - start_time
-        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        print('Training time {}'.format(total_time_str))
+            # TODO: implement val dataset
+            # Validation metrics
+            model = self.ema.module if self.ema else self.model
+            val_stats = evaluate(
+                model, self.criterion, self.postprocessor, self.val_dataloader, self.device
+            )
+            log_stats(self.run, "val", val_stats)
 
     def val(self):
         self.eval()
 
-        base_ds = get_coco_api_from_dataset(self.val_dataloader.dataset)
-        
-        module = self.ema.module if self.ema else self.model
-        test_stats, coco_evaluator = evaluate(module, self.criterion, self.postprocessor,
-                self.val_dataloader, base_ds, self.device, self.output_dir)
-                
+        model = self.ema.module if self.ema else self.model
+        val_stats = evaluate(
+            model, self.criterion, self.postprocessor, self.val_dataloader, self.device
+        )
+        log_stats(self.run, "val", val_stats)
+
+    def save_checkpoint(self, epoch: int):
         if self.output_dir:
-            dist.save_on_master(coco_evaluator.coco_eval["bbox"].eval, self.output_dir / "eval.pth")
-        
-        return
+            checkpoint_paths = [self.output_dir / f'{epoch:03d}.pt']
+            for checkpoint_path in checkpoint_paths:
+                dist.save_on_master(self.state_dict(epoch), checkpoint_path)

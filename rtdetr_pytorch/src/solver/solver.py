@@ -62,12 +62,13 @@ class BaseSolver(object):
             pin_memory=self.cfg.train_dataloader.pin_memory,
             num_workers=self.cfg.train_dataloader.num_workers,
         )
+        self.val_dataloader = factory.train_dataset(with_augmentations=False)  # TODO: change to proper validation
         # self.val_dataloader = dist.warp_loader(self.cfg.val_dataloader, \
         #     shuffle=self.cfg.val_dataloader.shuffle)
 
     def eval(self):
         self.setup()
-        raise NotImplementedError
+        self.val_dataloader = factory.train_dataset(with_augmentations=False)  # TODO: change to proper validation
         # self.val_dataloader = dist.warp_loader(self.cfg.val_dataloader, \
         #     shuffle=self.cfg.val_dataloader.shuffle)
 
@@ -133,13 +134,11 @@ class BaseSolver(object):
             self.scaler.load_state_dict(state['scaler'])
             print('Loading scaler.state_dict')
 
-
     def save(self, path):
         '''save state
         '''
         state = self.state_dict()
         dist.save_on_master(state, path)
-
 
     def resume(self, path):
         '''load resume
@@ -182,7 +181,6 @@ class BaseSolver(object):
                 missed_list.append(k)
 
         return matched_state, {'missed': missed_list, 'unmatched': unmatched_list}
-
 
     def fit(self, ):
         raise NotImplementedError('')

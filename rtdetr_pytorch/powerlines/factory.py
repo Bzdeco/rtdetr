@@ -3,7 +3,7 @@ from pathlib import Path
 from omegaconf import DictConfig
 
 from powerlines.data.config import DataSourceConfig, LoadingConfig, SamplingConfig
-from powerlines.data.dataset import PolesDetectionDataset
+from powerlines.data.dataset import TrainPolesDetectionDataset
 
 
 def data_source(subset: str) -> DataSourceConfig:
@@ -32,12 +32,13 @@ def sampling() -> SamplingConfig:
     )
 
 
-def train_dataset() -> PolesDetectionDataset:
-    return PolesDetectionDataset(
+def train_dataset(with_augmentations: bool = True) -> TrainPolesDetectionDataset:
+    return TrainPolesDetectionDataset(
         data_source=data_source("train"),
         loading=loading(),
         sampling=sampling(),
-        num_frames=10  # FIXME: remove
+        num_frames=10,  # FIXME: remove
+        with_augmentations=with_augmentations
     )
 
 

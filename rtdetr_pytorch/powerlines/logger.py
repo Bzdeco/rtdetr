@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Optional
 
 import neptune
@@ -15,7 +16,7 @@ def create_neptune_run(name: str, resume: bool = False, from_run_id: Optional[in
         api_token=os.environ["NEPTUNE_API_TOKEN"],
         with_id=with_id,
         name=run_name,
-        mode="async",
+        mode="debug",  # FIXME: change to async
         capture_stdout=True,
         capture_stderr=True,
         capture_traceback=True,
@@ -25,5 +26,10 @@ def create_neptune_run(name: str, resume: bool = False, from_run_id: Optional[in
     )
 
 
+neptune_id_pattern = re.compile(r"\w+-(?P<id>\d+)")
+
+
 def run_id(run: neptune.Run) -> int:
-    return int(run["sys/id"].fetch()[4:])
+    neptune_id = run["sys/id"].fetch()
+    match = neptune_id_pattern.match(neptune_id)
+    return int(match.group("id"))
