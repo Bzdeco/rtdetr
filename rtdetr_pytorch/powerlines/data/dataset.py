@@ -100,6 +100,7 @@ def load_complete_frame(
 
 
 DETECTOR_INPUT_SIZE = [640, 640]
+ORIG_SIZE = torch.as_tensor(DETECTOR_INPUT_SIZE)
 MIN_BBOX_SIZE = 1  # min pole width across DDLN dataset = 0.5
 
 
@@ -125,7 +126,8 @@ def evaluation_augmentations():
         transforms.Resize(size=DETECTOR_INPUT_SIZE, interpolation=InterpolationMode.BILINEAR),
         transforms.ConvertImageDtype(dtype=torch.float32),
         transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
-        transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH)
+        transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH),
+        transforms.ToPureTensor()
     ])
 
 
@@ -142,12 +144,13 @@ class TrainPolesDetectionDataset(Dataset):
         self.data_source = data_source
         self.loading = loading
         self.sampling = sampling
+        self.with_augmentations = with_augmentations
 
         self.filepaths = load_filtered_filepaths(data_source)
         self.annotations = load_annotations(data_source)
         self.num_frames = num_frames if num_frames is not None else len(self.filepaths)
 
-        if with_augmentations:
+        if self.with_augmentations:
             self.augmentations = train_augmentations()
         else:
             self.augmentations = evaluation_augmentations()
@@ -157,7 +160,8 @@ class TrainPolesDetectionDataset(Dataset):
             load_parameters_for_configuration,
             self._loading_data,
             num_workers,
-            f"Loading {data_source.data_source_subset} frames for configuration"
+            f"Loading {data_source.data_source_subset} frames for configuration",
+            use_threads=True
         )
         self.sampling.configure_sampling(self.cache)
 
@@ -197,6 +201,8 @@ class TrainPolesDetectionDataset(Dataset):
         input_aug, targets_aug = self.augmentations(input, targets)
         targets_aug["poles_distance_mask"] = torch.from_numpy(poles_distance_mask_patch)
         targets_aug["labels"] = targets_aug["labels"].long()
+        if not self.with_augmentations:
+            targets_aug["orig_size"] = ORIG_SIZE
 
         return input_aug, targets_aug
 

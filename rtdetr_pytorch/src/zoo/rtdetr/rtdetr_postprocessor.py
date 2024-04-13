@@ -30,17 +30,14 @@ class RTDETRPostProcessor(nn.Module):
     
     # def forward(self, outputs, orig_target_sizes):
     def forward(self, outputs, orig_target_sizes):
-        print("Postprocessing outputs")
+        logits, boxes = outputs["pred_logits"], outputs["pred_boxes"]
 
-        logits, boxes = outputs['pred_logits'], outputs['pred_boxes']
-        # orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)        
-
-        bbox_pred = torchvision.ops.box_convert(boxes, in_fmt='cxcywh', out_fmt='xyxy')
+        bbox_pred = torchvision.ops.box_convert(boxes, in_fmt="cxcywh", out_fmt="xyxy")
         bbox_pred *= orig_target_sizes.repeat(1, 2).unsqueeze(1)
 
         if self.use_focal_loss:
             scores = F.sigmoid(logits)
-            scores, index = torch.topk(scores.flatten(1), self.num_top_queries, axis=-1)
+            scores, index = torch.topk(scores.flatten(1), self.num_top_queries, dim=-1)
             labels = index % self.num_classes
             index = index // self.num_classes
             boxes = bbox_pred.gather(dim=1, index=index.unsqueeze(-1).repeat(1, 1, bbox_pred.shape[-1]))

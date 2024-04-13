@@ -7,7 +7,7 @@ by lyuwenyu
 
 import math
 import sys
-from typing import Iterable
+from typing import Iterable, Dict
 
 import torch
 import torch.amp
@@ -88,17 +88,19 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
     # Create mAP metric
     mAP = mean_average_precision()
 
-    for samples, targets in tqdm(data_loader, desc="Validating"):
-        samples = samples.to(device)
+    for inputs, targets in tqdm(data_loader, desc="Validating"):
+        inputs = inputs.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
         # with torch.autocast(device_type=str(device)):
         #     outputs = model(samples)
 
-        outputs = model(samples)
+        outputs = model(inputs)
 
-        orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)        
+        # Convert prediction boxes to absolute values
+        orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0).to(device)
         predictions = postprocessors(outputs, orig_target_sizes)
+
         _ = mAP(predictions, targets)
 
     return mAP.compute()

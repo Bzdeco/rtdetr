@@ -58,11 +58,21 @@ class BaseSolver(object):
             train_dataset,
             batch_size=self.cfg.train_dataloader.batch_size,
             drop_last=self.cfg.train_dataloader.drop_last,
+            shuffle=True,
             collate_fn=self.cfg.train_dataloader.collate_fn,
             pin_memory=self.cfg.train_dataloader.pin_memory,
             num_workers=self.cfg.train_dataloader.num_workers,
         )
-        self.val_dataloader = factory.train_dataset(with_augmentations=False)  # TODO: change to proper validation
+        val_dataset = factory.train_dataset(with_augmentations=False)  # TODO: change to proper validation
+        self.val_dataloader = DataLoader(
+            val_dataset,
+            batch_size=self.cfg.train_dataloader.batch_size,
+            drop_last=False,
+            collate_fn=self.cfg.train_dataloader.collate_fn,
+            pin_memory=self.cfg.train_dataloader.pin_memory,
+            num_workers=self.cfg.train_dataloader.num_workers
+        )
+
         # self.val_dataloader = dist.warp_loader(self.cfg.val_dataloader, \
         #     shuffle=self.cfg.val_dataloader.shuffle)
 
