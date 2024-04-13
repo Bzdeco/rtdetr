@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Callable
 
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Dataset
@@ -38,7 +39,8 @@ def train_dataset(with_augmentations: bool = True) -> TrainPolesDetectionDataset
         data_source=data_source("train"),
         loading=loading(),
         sampling=sampling(),
-        with_augmentations=with_augmentations
+        with_augmentations=with_augmentations,
+        num_frames=10
     )
 
 
@@ -51,8 +53,8 @@ def dataloader(
     batch_size: int,
     drop_last: bool,
     shuffle: bool,
-    num_workers: int
-
+    num_workers: int,
+    collate_fn: Callable
 ):
     return DataLoader(
         dataset,
@@ -61,4 +63,5 @@ def dataloader(
         shuffle=shuffle,
         pin_memory=True,
         num_workers=num_workers,
+        collate_fn=collate_fn
     )

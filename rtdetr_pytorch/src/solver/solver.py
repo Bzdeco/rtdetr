@@ -56,14 +56,16 @@ class BaseSolver(object):
             batch_size=self.cfg.train_dataloader.batch_size,
             drop_last=self.cfg.train_dataloader.drop_last,
             shuffle=True,
-            num_workers=self.cfg.train_dataloader.num_workers
+            num_workers=self.cfg.train_dataloader.num_workers,
+            collate_fn=self.cfg.train_dataloader.collate_fn
         )
         self.val_dataloader = factory.dataloader(
             factory.train_dataset(with_augmentations=False),  # TODO: change to proper validation
             batch_size=self.cfg.val_dataloader.batch_size,
             drop_last=False,
             shuffle=False,
-            num_workers=self.cfg.val_dataloader.num_workers
+            num_workers=self.cfg.val_dataloader.num_workers,
+            collate_fn=self.cfg.val_dataloader.collate_fn
         )
 
     def eval(self):
@@ -73,7 +75,8 @@ class BaseSolver(object):
             batch_size=self.cfg.val_dataloader.batch_size,
             drop_last=False,
             shuffle=False,
-            num_workers=self.cfg.val_dataloader.num_workers
+            num_workers=self.cfg.val_dataloader.num_workers,
+            collate_fn=self.cfg.val_dataloader.collate_fn
         )
 
         if self.cfg.resume:
