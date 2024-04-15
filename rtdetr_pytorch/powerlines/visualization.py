@@ -32,7 +32,7 @@ class VisualizationLogger:
         self._n_images_per_epoch = n_images_per_epoch
         self._every = every
 
-        self._n_logged = n_images_per_epoch
+        self._n_logged = 0
         self._current_epoch = 0
 
     def log(self, epoch: int, image: torch.Tensor, prediction: Dict[str, torch.Tensor], target: Dict[str, torch.Tensor]):
@@ -41,4 +41,8 @@ class VisualizationLogger:
             self._n_logged = 0
 
         if epoch % self._every == 0 and self._n_logged < self._n_images_per_epoch:
-            self._run["images"].append(visualize_object_detection(image, prediction, target), step=epoch)
+            self._run["images"].append(
+                visualize_object_detection(image, prediction, target),
+                description=str(epoch)
+            )
+            self._n_logged += 1
