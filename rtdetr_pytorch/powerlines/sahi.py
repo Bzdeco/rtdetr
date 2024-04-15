@@ -8,7 +8,6 @@ from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
 
 postprocess_bboxes = transforms.Compose([
     transforms.ClampBoundingBoxes(),
-    transforms.SanitizeBoundingBoxes(),
     transforms.ToPureTensor()
 ])
 
@@ -22,13 +21,13 @@ def merge_patch_boxes_predictions(
 
     boxes = []
     for prediction, shift in zip(predictions, shifts.to(device)):
-        xyxy_shift = shift.repeat(2)
-        boxes.append(scale * prediction["boxes"] + xyxy_shift.unsqueeze(0))
+        xyxy_shift = shift.repeat(2).unsqueeze(0)
+        boxes.append(scale * prediction["boxes"] + xyxy_shift)
 
     merged_boxes = BoundingBoxes(
         torch.concatenate(boxes, dim=0),
         format=BoundingBoxFormat.XYXY,
-        canvas_size=(patch_size,) * 2
+        canvas_size=(3000, 4096)
     )
     labels = torch.concatenate([pred["labels"] for pred in predictions], dim=0)
     scores = torch.concatenate([pred["scores"] for pred in predictions], dim=0)

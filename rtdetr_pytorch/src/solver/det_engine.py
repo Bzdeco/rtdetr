@@ -11,13 +11,15 @@ from typing import Iterable
 
 import torch
 import torch.amp
+from neptune import Run
 from sahi.postprocess.combine import NMSPostprocess
 from tqdm import tqdm
 
-from powerlines.data.utils import cut_into_complete_set_of_patches, inference_augmentations
+from powerlines.data.utils import cut_into_complete_set_of_patches, inference_augmentations, DETECTOR_INPUT_SIZE, ORIG_SIZE
 from powerlines.evaluation import mean_average_precision
 from powerlines.sahi import merge_patch_boxes_predictions, tensors_to_sahi_object_predictions, \
     sahi_object_predictions_to_tensors
+from powerlines.visualization import visualize_object_detection
 from src.misc import (MetricsTracker, reduce_dict)
 
 
@@ -85,7 +87,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
 
 @torch.no_grad()
-def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors, data_loader, device):
+def evaluate(epoch: int, model: torch.nn.Module, criterion: torch.nn.Module, postprocessors, data_loader, device, run: Run):
     model.eval()
     criterion.eval()
 
@@ -96,20 +98,24 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
     patch_size = 1024
     step_size = 512
 
-    for image, target in tqdm(data_loader, desc="Validating"):
+    for i, (image, target) in enumerate(tqdm(data_loader, desc="Validating")):
         image = image.to(device)
         target = {k: v.to(device) for k, v in target[0].items()}
-        orig_size = target["orig_size"]
 
         image_patches, shifts = cut_into_complete_set_of_patches(image.squeeze(), patch_size, step_size)
         with torch.autocast(device_type=str(device)):
-            patch_outputs = model(preprocess(image_patches))  # assumes this batch size will fit
+            input = preprocess(image_patches)
+            patch_outputs = model(input)  # assumes this batch size will fit
 
-        patch_predictions = postprocessors(patch_outputs, torch.stack([orig_size] * len(image_patches), dim=0).to(device))
-        merged_patch_predictions = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, orig_size[0].item())
+        patch_predictions = postprocessors(
+            patch_outputs, torch.stack([ORIG_SIZE] * len(image_patches), dim=0).to(device)
+        )
+        merged_patch_predictions = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, DETECTOR_INPUT_SIZE[0])
         merged_object_predictions = sahi_postprocessor(tensors_to_sahi_object_predictions(merged_patch_predictions))
         prediction = sahi_object_predictions_to_tensors(merged_object_predictions, device)
 
         _ = mAP([prediction], [target])
+        if i == 0:
+            run["images"].append(visualize_object_detection(image, prediction, target), step=epoch)
 
     return mAP.compute()

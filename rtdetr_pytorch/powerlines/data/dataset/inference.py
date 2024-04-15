@@ -6,7 +6,7 @@ from torchvision import tv_tensors
 
 from powerlines.data.annotations import ImageAnnotations
 from powerlines.data.config import DataSourceConfig, LoadingConfig, SamplingConfig
-from powerlines.data.utils import evaluation_augmentations, load_filtered_filepaths, load_annotations, load_complete_frame
+from powerlines.data.utils import load_filtered_filepaths, load_annotations, load_complete_frame
 
 
 ORIG_SIZE = torch.tensor([3000, 4096])
@@ -28,7 +28,6 @@ class InferencePolesDetectionDataset(Dataset):
         self.annotations = load_annotations(data_source)
         self.num_frames = num_frames if num_frames is not None else len(self.filepaths)
 
-        self.augmentations = evaluation_augmentations()
         self.cache = [{
             "timestamp": annotation.frame_timestamp(),
             "annotation": annotation
@@ -42,14 +41,11 @@ class InferencePolesDetectionDataset(Dataset):
 
         targets = {
             "boxes": bounding_boxes,
-            "labels": torch.as_tensor([0] * len(bounding_boxes))
+            "labels": torch.as_tensor([0] * len(bounding_boxes)).long(),
+            "poles_distance_mask": torch.from_numpy(poles_distance_mask)
         }
-        input_aug, targets_aug = self.augmentations(input, targets)
-        targets_aug["poles_distance_mask"] = torch.from_numpy(poles_distance_mask)
-        targets_aug["labels"] = targets_aug["labels"].long()
-        targets_aug["orig_size"] = ORIG_SIZE
 
-        return input_aug, targets_aug
+        return input, targets
 
     def _bounding_boxes(self, annotation: ImageAnnotations) -> tv_tensors.BoundingBoxes:
         bounding_boxes = []

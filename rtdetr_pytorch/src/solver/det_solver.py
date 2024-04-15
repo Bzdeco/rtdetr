@@ -58,9 +58,7 @@ class DetSolver(BaseSolver):
 
             # Validate
             model = self.ema.module if self.ema else self.model
-            val_stats = evaluate(
-                model, self.criterion, self.postprocessor, self.val_dataloader, self.device
-            )
+            val_stats = evaluate(epoch, model, self.criterion, self.postprocessor, self.val_dataloader, self.device, self.run)
 
             # Validation metrics
             log_stats(self.run, "val", val_stats)
