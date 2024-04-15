@@ -13,7 +13,7 @@ import torch
 import torch.amp
 from tqdm import tqdm
 
-from powerlines.data.utils import cut_into_complete_set_of_patches, evaluation_augmentations
+from powerlines.data.utils import cut_into_complete_set_of_patches, inference_augmentations
 from powerlines.evaluation import mean_average_precision
 from powerlines.sahi import merge_patch_boxes_predictions
 from src.misc import (MetricsTracker, reduce_dict)
@@ -89,7 +89,7 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
 
     # Create mAP metric
     mAP = mean_average_precision()
-    preprocess = evaluation_augmentations()
+    preprocess = inference_augmentations()
     patch_size = 1024
     step_size = 512
 
@@ -102,8 +102,8 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
         with torch.autocast(device_type=str(device)):
             patch_outputs = model(preprocess(image_patches))  # assumes this batch size will fit
 
-        patch_predictions = postprocessors(patch_outputs, torch.as_tensor([orig_size] * len(image_patches)))
-        prediction = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, orig_size)
+        patch_predictions = postprocessors(patch_outputs, torch.stack([orig_size] * len(image_patches), dim=0).to(device))
+        prediction = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, orig_size[0].item())
         _ = mAP([prediction], [target])
 
     return mAP.compute()

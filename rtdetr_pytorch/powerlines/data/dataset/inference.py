@@ -63,3 +63,6 @@ class InferencePolesDetectionDataset(Dataset):
             format=tv_tensors.BoundingBoxFormat.XYXY,
             canvas_size=(3000, 4096)
         )
+
+    def __len__(self) -> int:
+        return self.num_frames
