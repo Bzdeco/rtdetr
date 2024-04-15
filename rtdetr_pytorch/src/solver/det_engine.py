@@ -106,8 +106,10 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
             patch_outputs = model(preprocess(image_patches))  # assumes this batch size will fit
 
         patch_predictions = postprocessors(patch_outputs, torch.stack([orig_size] * len(image_patches), dim=0).to(device))
-        prediction = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, orig_size[0].item())
-        merged_object_predictions = sahi_postprocessor(tensors_to_sahi_object_predictions(prediction))
-        _ = mAP([sahi_object_predictions_to_tensors(merged_object_predictions)], [target])
+        merged_patch_predictions = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, orig_size[0].item())
+        merged_object_predictions = sahi_postprocessor(tensors_to_sahi_object_predictions(merged_patch_predictions))
+        prediction = sahi_object_predictions_to_tensors(merged_object_predictions, device)
+
+        _ = mAP([prediction], [target])
 
     return mAP.compute()

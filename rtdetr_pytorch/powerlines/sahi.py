@@ -1,8 +1,16 @@
 from typing import Dict, List
 
 import torch
+import torchvision.transforms.v2 as transforms
 from sahi import ObjectPrediction
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
+
+
+postprocess_bboxes = transforms.Compose([
+    transforms.ClampBoundingBoxes(),
+    transforms.SanitizeBoundingBoxes(),
+    transforms.ToPureTensor()
+])
 
 
 def merge_patch_boxes_predictions(
@@ -25,7 +33,7 @@ def merge_patch_boxes_predictions(
     labels = torch.concatenate([pred["labels"] for pred in predictions], dim=0)
     scores = torch.concatenate([pred["scores"] for pred in predictions], dim=0)
 
-    return {"boxes": merged_boxes.as_subclass(torch.Tensor), "labels": labels, "scores": scores}
+    return postprocess_bboxes({"boxes": merged_boxes, "labels": labels, "scores": scores})
 
 
 def tensors_to_sahi_object_predictions(prediction: Dict[str, torch.Tensor]) -> List[ObjectPrediction]:
@@ -33,7 +41,7 @@ def tensors_to_sahi_object_predictions(prediction: Dict[str, torch.Tensor]) -> L
     for box, label, score in zip(prediction["boxes"], prediction["labels"], prediction["scores"]):
         object_predictions.append(ObjectPrediction(
             bbox=box.tolist(),
-            category_id=label,
+            category_id=int(label),
             category_name="pole",
             score=score,
             full_shape=[3000, 4096]
@@ -41,11 +49,17 @@ def tensors_to_sahi_object_predictions(prediction: Dict[str, torch.Tensor]) -> L
     return object_predictions
 
 
-def sahi_object_predictions_to_tensors(object_predictions: List[ObjectPrediction]) -> Dict[str, torch.Tensor]:
+def sahi_object_predictions_to_tensors(
+    object_predictions: List[ObjectPrediction], device: torch.device
+) -> Dict[str, torch.Tensor]:
     boxes, labels, scores = [], [], []
     for object_prediction in object_predictions:
-        boxes.append(torch.as_tensor(object_prediction.bbox))
+        boxes.append(torch.as_tensor(object_prediction.bbox.to_xyxy(), dtype=torch.float))
         labels.append(object_prediction.category.id)
-        scores.append(object_prediction.score)
+        scores.append(object_prediction.score.value)
 
-    return {"boxes": torch.stack(boxes, dim=0), "labels": torch.as_tensor(labels), "scores": torch.as_tensor(scores)}
+    return {
+        "boxes": torch.stack(boxes, dim=0).to(device),
+        "labels": torch.as_tensor(labels).long().to(device),
+        "scores": torch.as_tensor(scores).to(device)
+    }
