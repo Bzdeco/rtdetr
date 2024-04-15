@@ -1,4 +1,6 @@
-from typing import Dict, List
+import math
+from collections import namedtuple
+from typing import Dict, List, Callable, Optional
 
 import torch
 import torchvision.transforms.v2 as transforms
@@ -6,7 +8,7 @@ from sahi import ObjectPrediction
 from sahi.postprocess.combine import NMSPostprocess
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
 
-from powerlines.data.utils import DETECTOR_INPUT_SIZE
+from powerlines.data.utils import DETECTOR_INPUT_SIZE, cut_into_complete_set_of_patches
 
 postprocess_bboxes = transforms.Compose([
     transforms.ClampBoundingBoxes(),
@@ -15,14 +17,14 @@ postprocess_bboxes = transforms.Compose([
 
 
 def merge_patch_boxes_predictions(
-    predictions: List[Dict[str, torch.Tensor]], shifts: torch.Tensor, patch_size: int, orig_size: int
+    predictions: List[Dict[str, torch.Tensor]], shifts: torch.Tensor, patch_sizes: torch.Tensor, orig_size: int
 ) -> Dict[str, torch.Tensor]:
     assert len(predictions) == len(shifts)
-    scale = patch_size / orig_size
+    scales = patch_sizes / orig_size
     device = predictions[0]["boxes"].device
 
     boxes = []
-    for prediction, shift in zip(predictions, shifts.to(device)):
+    for prediction, shift, scale in zip(predictions, shifts.to(device), scales.to(device)):
         xyxy_shift = shift.repeat(2).unsqueeze(0)
         boxes.append(scale * prediction["boxes"] + xyxy_shift)
 
@@ -69,12 +71,54 @@ def sahi_object_predictions_to_tensors(
 SAHI_POSTPROCESSOR = NMSPostprocess()
 
 
+def is_valid_object_prediction(object_prediction: ObjectPrediction) -> bool:
+    bbox = object_prediction.bbox
+    return bbox.minx < bbox.maxx and bbox.miny < bbox.maxy
+
+
 def sahi_sliced_predictions_to_full_resolution(
     patch_predictions: List[Dict[str, torch.Tensor]],
     shifts: torch.Tensor,
-    patch_size: int,
-    device: torch.device
+    patch_sizes: torch.Tensor,
+    device: torch.device,
+    min_score: Optional[float] = None
 ):
-    merged_patch_predictions = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, DETECTOR_INPUT_SIZE[0])
-    merged_object_predictions = SAHI_POSTPROCESSOR(tensors_to_sahi_object_predictions(merged_patch_predictions))
+    merged_patch_predictions = merge_patch_boxes_predictions(patch_predictions, shifts, patch_sizes, DETECTOR_INPUT_SIZE[0])
+    object_predictions = list(filter(is_valid_object_prediction, tensors_to_sahi_object_predictions(merged_patch_predictions)))
+    if min_score is not None:
+        object_predictions = list(filter(lambda pred: pred.score.value >= min_score, object_predictions))
+
+    merged_object_predictions = SAHI_POSTPROCESSOR(object_predictions)
     return sahi_object_predictions_to_tensors(merged_object_predictions, device)
+
+
+MultiscalePatches = namedtuple("MultiscalePatches", ["patches", "shifts", "patch_sizes"])
+
+
+def multiscale_image_patches(image: torch.Tensor, patch_sizes: List[int], step_size_fraction: float):
+    image_patches = []
+    shifts = []
+    sizes = []
+
+    for patch_size in patch_sizes:
+        step_size = int(step_size_fraction * patch_size)
+        scale_patches, scale_shifts = cut_into_complete_set_of_patches(image.squeeze(), patch_size, step_size)
+        image_patches.extend(scale_patches)
+        shifts.extend(scale_shifts)
+        sizes.extend([patch_size] * len(image_patches))
+
+    return MultiscalePatches(patches=image_patches, shifts=torch.stack(shifts), patch_sizes=torch.as_tensor(sizes))
+
+
+def batch_multiscale_patches(
+    multiscale_patches: MultiscalePatches, batch_size: int, preprocess: Callable
+) -> List[torch.Tensor]:
+    batches = []
+    n_batches = int(math.ceil(len(multiscale_patches.patches) / batch_size))
+
+    for b in range(n_batches):
+        patches = multiscale_patches.patches[b * batch_size:(b + 1) * batch_size]
+        batch = torch.stack([preprocess(patch) for patch in patches], dim=0)
+        batches.append(batch)
+
+    return batches

@@ -292,7 +292,7 @@ def pad_tensor_to_match_target_size(tensor: torch.Tensor, downsampling_factor: i
 
 def cut_into_complete_set_of_patches(
     image: Union[torch.Tensor, np.ndarray], patch_size: int, step_size: int
-) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
+) -> Tuple[List[Union[np.ndarray, torch.Tensor]], List[Union[np.ndarray, torch.Tensor]]]:
     assert len(image.shape) == 3, f"Expected image as (C, H, W), got {len(image.shape)} dimensions"
     height, width = image.shape[1:]
     is_array = isinstance(image, np.ndarray)
@@ -314,7 +314,4 @@ def cut_into_complete_set_of_patches(
             else:
                 shifts.append(torch.as_tensor([x, y]))
 
-    if is_array:
-        return np.stack(patches), np.stack(shifts)
-    else:
-        return torch.stack(patches), torch.stack(shifts)
+    return patches, shifts

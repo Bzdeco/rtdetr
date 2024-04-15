@@ -15,9 +15,9 @@ from neptune import Run
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from powerlines.data.utils import cut_into_complete_set_of_patches, inference_augmentations, ORIG_SIZE
+from powerlines.data.utils import inference_augmentations, ORIG_SIZE
 from powerlines.evaluation import mean_average_precision
-from powerlines.sahi import sahi_sliced_predictions_to_full_resolution
+from powerlines.sahi import sahi_sliced_predictions_to_full_resolution, multiscale_image_patches, batch_multiscale_patches
 from powerlines.visualization import VisualizationLogger
 from src.misc import (MetricsTracker, reduce_dict)
 
@@ -103,22 +103,29 @@ def evaluate(
     logger = VisualizationLogger(run, n_images_per_epoch=3, every=1)
 
     preprocess = inference_augmentations()
-    patch_size = 1024
-    step_size = 512
+    step_size_fraction = 0.5
 
     for image, target in tqdm(data_loader, desc="Validating"):
         image = image.to(device)
         target = {k: v.to(device) for k, v in target[0].items()}
 
-        image_patches, shifts = cut_into_complete_set_of_patches(image.squeeze(), patch_size, step_size)
-        with torch.autocast(device_type=str(device)):
-            input = preprocess(image_patches)
-            patch_outputs = model(input)  # assumes this batch size will fit
+        multiscale_patches = multiscale_image_patches(image, [1024, 512, 256], step_size_fraction)
 
-        patch_predictions = detection_postprocessor(
-            patch_outputs, torch.stack([ORIG_SIZE] * len(image_patches), dim=0).to(device)
+        patch_predictions = []
+        with torch.autocast(device_type=str(device)):
+            for batch in tqdm(
+                batch_multiscale_patches(multiscale_patches, batch_size=8, preprocess=preprocess),
+                desc="SAHI"
+            ):
+                batch_outputs = model(batch)
+                patch_predictions.extend(detection_postprocessor(
+                    batch_outputs, torch.stack([ORIG_SIZE] * len(batch), dim=0).to(device)
+                ))
+
+        # FIXME: min_score threshold
+        prediction = sahi_sliced_predictions_to_full_resolution(
+            patch_predictions, multiscale_patches.shifts, multiscale_patches.patch_sizes, device, min_score=0.5
         )
-        prediction = sahi_sliced_predictions_to_full_resolution(patch_predictions, shifts, patch_size, device)
 
         _ = mAP([prediction], [target])
         logger.log(epoch, image, prediction, target)
