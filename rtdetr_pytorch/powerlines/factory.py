@@ -5,7 +5,8 @@ from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Dataset
 
 from powerlines.data.config import DataSourceConfig, LoadingConfig, SamplingConfig
-from powerlines.data.dataset import TrainPolesDetectionDataset
+from powerlines.data.dataset.sampling import TrainPolesDetectionDataset
+from powerlines.data.dataset.inference import InferencePolesDetectionDataset
 
 
 def data_source(subset: str) -> DataSourceConfig:
@@ -39,13 +40,16 @@ def train_dataset(with_augmentations: bool = True) -> TrainPolesDetectionDataset
         data_source=data_source("train"),
         loading=loading(),
         sampling=sampling(),
-        with_augmentations=with_augmentations,
-        num_frames=10
+        with_augmentations=with_augmentations
     )
 
 
-def val_dataset() -> None:
-    raise NotImplementedError
+def val_dataset() -> InferencePolesDetectionDataset:
+    return InferencePolesDetectionDataset(
+        data_source=data_source("val"),
+        loading=loading(),
+        sampling=sampling()
+    )
 
 
 def dataloader(

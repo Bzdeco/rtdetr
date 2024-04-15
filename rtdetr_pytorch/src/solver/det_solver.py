@@ -56,14 +56,14 @@ class DetSolver(BaseSolver):
             log_stats(self.run, "train", train_stats)
             self.save_checkpoint(epoch)
 
+            # Validate
+            model = self.ema.module if self.ema else self.model
+            val_stats = evaluate(
+                model, self.criterion, self.postprocessor, self.val_dataloader, self.device
+            )
+
             # Validation metrics
-            if epoch % 10 == 0:
-                # TODO: implement val dataset
-                model = self.ema.module if self.ema else self.model
-                val_stats = evaluate(
-                    model, self.criterion, self.postprocessor, self.val_dataloader, self.device
-                )
-                log_stats(self.run, "val", val_stats)
+            log_stats(self.run, "val", val_stats)
 
     def val(self):
         self.eval()

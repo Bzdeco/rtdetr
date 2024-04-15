@@ -47,7 +47,7 @@ class DataSourceConfig:
     def annotations(self):
         return parse_annotations(self.annotations_path)
 
-    def input_filepath(self, timestamp: str):
+    def input_filepath(self, timestamp: int):
         return self.inputs_folder / f"{timestamp}.npy"
 
     def subsets_split(self) -> bool:

@@ -7,13 +7,15 @@ by lyuwenyu
 
 import math
 import sys
-from typing import Iterable, Dict
+from typing import Iterable
 
 import torch
 import torch.amp
 from tqdm import tqdm
 
+from powerlines.data.utils import cut_into_complete_set_of_patches, evaluation_augmentations
 from powerlines.evaluation import mean_average_precision
+from powerlines.sahi import merge_patch_boxes_predictions
 from src.misc import (MetricsTracker, reduce_dict)
 
 
@@ -87,18 +89,21 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
 
     # Create mAP metric
     mAP = mean_average_precision()
+    preprocess = evaluation_augmentations()
+    patch_size = 1024
+    step_size = 512
 
-    for inputs, targets in tqdm(data_loader, desc="Validating"):
-        inputs = inputs.to(device)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+    for image, target in tqdm(data_loader, desc="Validating"):
+        image = image.to(device)
+        target = {k: v.to(device) for k, v in target[0].items()}
+        orig_size = target["orig_size"]
 
+        image_patches, shifts = cut_into_complete_set_of_patches(image.squeeze(), patch_size, step_size)
         with torch.autocast(device_type=str(device)):
-            outputs = model(inputs)
+            patch_outputs = model(preprocess(image_patches))  # assumes this batch size will fit
 
-        # Convert prediction boxes to absolute values
-        orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0).to(device)
-        predictions = postprocessors(outputs, orig_target_sizes)
-
-        _ = mAP(predictions, targets)
+        patch_predictions = postprocessors(patch_outputs, torch.as_tensor([orig_size] * len(image_patches)))
+        prediction = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, orig_size)
+        _ = mAP([prediction], [target])
 
     return mAP.compute()

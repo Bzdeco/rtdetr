@@ -60,8 +60,8 @@ class BaseSolver(object):
             collate_fn=self.cfg.train_dataloader.collate_fn
         )
         self.val_dataloader = factory.dataloader(
-            factory.train_dataset(with_augmentations=False),  # TODO: change to proper validation
-            batch_size=self.cfg.val_dataloader.batch_size,
+            factory.val_dataset(),
+            batch_size=1,  # fix to 1 full resolution image which gets sliced
             drop_last=False,
             shuffle=False,
             num_workers=self.cfg.val_dataloader.num_workers,
@@ -71,8 +71,8 @@ class BaseSolver(object):
     def eval(self):
         self.setup()
         self.val_dataloader = factory.dataloader(
-            factory.train_dataset(with_augmentations=False),  # TODO: change to proper validation
-            batch_size=self.cfg.val_dataloader.batch_size,
+            factory.val_dataset(),
+            batch_size=1,  # fix to 1 full resolution image which gets sliced
             drop_last=False,
             shuffle=False,
             num_workers=self.cfg.val_dataloader.num_workers,

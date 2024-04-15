@@ -1,12 +1,17 @@
 import math
 import random
 from pathlib import Path
-from typing import List, Optional, Set, Dict, Tuple
+from typing import List, Optional, Set, Dict, Tuple, Any, Union
 
 import numpy as np
+import torch
+import torchvision.transforms.v2 as transforms
+from torchvision import tv_tensors
+from torchvision.transforms import InterpolationMode
 
 from powerlines.data.annotations import ImageAnnotations
-from powerlines.utils import load_yaml
+from powerlines.data.config import DataSourceConfig, SamplingConfig, LoadingConfig
+from powerlines.utils import load_yaml, load_npy
 
 ROOT_FOLDER = Path(__file__).parents[2]
 FOLDS = load_yaml(ROOT_FOLDER / "configs/powerlines/folds.yaml")
@@ -245,3 +250,175 @@ def sample_patch_center(
     patch_center_idx = random.randint(0, len(used_patch_centers) - 1)
 
     return used_patch_centers[patch_center_idx, :]
+
+
+MAX_DISTANCE_MASK_VALUE = 128
+
+
+def load_annotations(data_source_config: DataSourceConfig) -> Dict[int, Any]:
+    fold_annotations = {}
+
+    for frame_annotations in data_source_config.annotations():
+        frame_timestamp = frame_annotations.frame_timestamp()
+        if frame_timestamp in data_source_config.timestamps:
+            fold_annotations[frame_timestamp] = frame_annotations
+
+    return fold_annotations
+
+
+def load_distance_masks(
+    data_source_config: DataSourceConfig, loading_config: LoadingConfig, frame_timestamp: int
+) -> Dict[str, Optional[np.ndarray]]:
+    frame_poles_distance_mask = load_npy(
+        data_source_config.poles_distance_masks_folder / f"{frame_timestamp}.npy"
+    ) if loading_config.poles_distance_mask else None
+
+    return {
+        "poles_distance_mask": frame_poles_distance_mask
+    }
+
+
+def load_parameters_for_sampling(loaded_frame_data: Dict[str, Any]) -> Dict[str, Any]:
+    data_source: DataSourceConfig = loaded_frame_data["data_source"]
+    sampling: SamplingConfig = loaded_frame_data["sampling"]
+    loading: LoadingConfig = loaded_frame_data["loading"]
+    timestamp = loaded_frame_data["timestamp"]
+    annotation = loaded_frame_data["annotation"]
+    perturbation_size = sampling.perturbation_size
+    patch_size = sampling.patch_size
+    remove_excluded_area = sampling.remove_excluded_area
+    distance_masks = load_distance_masks(data_source, loading, timestamp)
+
+    # Sample relative to poles
+    sampling_source_distance_mask = distance_masks["poles_distance_mask"]
+    num_positive_samples = num_pole_samples_in_frame(annotation)
+
+    positive_patch_centers_data = positive_sampled_patch_centers_data(
+        annotation,
+        sampling_source_distance_mask,
+        perturbation_size,
+        patch_size,
+        remove_excluded_area
+    )
+    negative_patch_centers_data = negative_sampled_patch_centers_data(
+        annotation,
+        sampling_source_distance_mask,
+        patch_size,
+        remove_excluded_area
+    )
+
+    return {
+        "timestamp": timestamp,
+        "annotation": annotation,
+        "positive_sampling_centers_data": positive_patch_centers_data,
+        "negative_sampling_centers_data": negative_patch_centers_data,
+        "has_positive_samples": len(positive_patch_centers_data["ground"]) + len(positive_patch_centers_data["sky"]) > 0,
+        "has_negative_samples": len(negative_patch_centers_data["ground"]) + len(negative_patch_centers_data["sky"]) > 0,
+        "num_positive_samples": num_positive_samples
+    }
+
+
+def load_complete_frame(
+    data_source: DataSourceConfig,
+    loading: LoadingConfig,
+    loaded_frame_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    timestamp = loaded_frame_data["timestamp"]
+    frame_image = load_npy(data_source.input_filepath(timestamp))
+    distance_masks = load_distance_masks(data_source, loading, timestamp)
+
+    return {
+        "timestamp": timestamp,
+        "image": frame_image,
+        "poles_distance_mask": distance_masks["poles_distance_mask"],
+        **loaded_frame_data
+    }
+
+
+DETECTOR_INPUT_SIZE = [640, 640]
+ORIG_SIZE = torch.as_tensor(DETECTOR_INPUT_SIZE)
+MIN_BBOX_SIZE = 1  # min pole width across DDLN dataset = 0.5
+
+
+def train_augmentations():
+    # Augmentations from RT-DETR, without ZoomOut, with adjusted min_scale and min_size, and with fixed aspect ratio
+    return transforms.Compose([
+        transforms.RandomPhotometricDistort(
+            brightness=(0.875, 1.125), contrast=(0.5, 1.5), hue=(-0.05, 0.05), saturation=(0.5, 1.5), p=0.5
+        ),
+        transforms.RandomIoUCrop(min_scale=1/8, max_scale=1, min_aspect_ratio=1, max_aspect_ratio=1, trials=40),
+        transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.Resize(size=DETECTOR_INPUT_SIZE, interpolation=InterpolationMode.BILINEAR),
+        transforms.ConvertImageDtype(dtype=torch.float32),
+        transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
+        transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH)
+    ])
+
+
+def evaluation_augmentations():
+    # Only resizes input and adapts the bounding boxes format
+    return transforms.Compose([
+        transforms.Resize(size=DETECTOR_INPUT_SIZE, interpolation=InterpolationMode.BILINEAR),
+        transforms.ConvertImageDtype(dtype=torch.float32),
+        transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
+        transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH),
+        transforms.ToPureTensor()
+    ])
+
+
+def compute_extended_frame_padding(image_size: Tuple[int, ...], downsampling_factor: int):
+    height, width = image_size[-2:]
+
+    # Pad image so that it corresponds in shape to min. image step size
+    incomplete_bottom = height - (height // downsampling_factor) * downsampling_factor
+    incomplete_right = width - (width // downsampling_factor) * downsampling_factor
+    pad_bottom = downsampling_factor - incomplete_bottom if incomplete_bottom > 0 else 0
+    pad_right = downsampling_factor - incomplete_right if incomplete_right > 0 else 0
+
+    return pad_bottom, pad_right
+
+
+def num_side_patches(side_size: int, patch_size: int, step_size: int) -> int:
+    return int(math.ceil((side_size - patch_size) / step_size)) + 1
+
+
+def pad_array_to_match_target_size(array: np.ndarray, downsampling_factor: int, padding_value: float) -> np.ndarray:
+    # Pads image so that each targets pixel corresponds to a complete and identical area in the image
+    pad_bottom, pad_right = compute_extended_frame_padding(array.shape, downsampling_factor)
+    return np.pad(array, ((0, 0), (0, pad_bottom), (0, pad_right)), mode="constant", constant_values=padding_value)
+
+
+def pad_tensor_to_match_target_size(tensor: torch.Tensor, downsampling_factor: int, padding_value: float) -> torch.Tensor:
+    pad_bottom, pad_right = compute_extended_frame_padding(tensor.shape, downsampling_factor)
+    return torch.nn.functional.pad(tensor, (0, pad_right, 0, pad_bottom), mode="constant", value=padding_value)
+
+
+def cut_into_complete_set_of_patches(
+    image: Union[torch.Tensor, np.ndarray], patch_size: int, step_size: int
+) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
+    assert len(image.shape) == 3, f"Expected image as (C, H, W), got {len(image.shape)} dimensions"
+    height, width = image.shape[1:]
+    is_array = isinstance(image, np.ndarray)
+
+    patches = []
+    shifts = []
+    for i in range(num_side_patches(height, patch_size, step_size)):
+        for j in range(num_side_patches(width, patch_size, step_size)):
+            y = i * step_size
+            x = j * step_size
+            if y + patch_size > height:
+                y = height - patch_size
+            if x + patch_size > width:
+                x = width - patch_size
+
+            patches.append(image[:, y:(y + patch_size), x:(x + patch_size)])
+            if is_array:
+                shifts.append(np.asarray([x, y]))
+            else:
+                shifts.append(torch.as_tensor([x, y]))
+
+    if is_array:
+        return np.stack(patches), np.stack(shifts)
+    else:
+        return torch.stack(patches), torch.stack(shifts)
