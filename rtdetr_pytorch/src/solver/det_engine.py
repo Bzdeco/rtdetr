@@ -11,11 +11,13 @@ from typing import Iterable
 
 import torch
 import torch.amp
+from sahi.postprocess.combine import NMSPostprocess
 from tqdm import tqdm
 
 from powerlines.data.utils import cut_into_complete_set_of_patches, inference_augmentations
 from powerlines.evaluation import mean_average_precision
-from powerlines.sahi import merge_patch_boxes_predictions
+from powerlines.sahi import merge_patch_boxes_predictions, tensors_to_sahi_object_predictions, \
+    sahi_object_predictions_to_tensors
 from src.misc import (MetricsTracker, reduce_dict)
 
 
@@ -90,6 +92,7 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
     # Create mAP metric
     mAP = mean_average_precision()
     preprocess = inference_augmentations()
+    sahi_postprocessor = NMSPostprocess()
     patch_size = 1024
     step_size = 512
 
@@ -104,6 +107,7 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, postprocessors,
 
         patch_predictions = postprocessors(patch_outputs, torch.stack([orig_size] * len(image_patches), dim=0).to(device))
         prediction = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, orig_size[0].item())
-        _ = mAP([prediction], [target])
+        merged_object_predictions = sahi_postprocessor(tensors_to_sahi_object_predictions(prediction))
+        _ = mAP([sahi_object_predictions_to_tensors(merged_object_predictions)], [target])
 
     return mAP.compute()
