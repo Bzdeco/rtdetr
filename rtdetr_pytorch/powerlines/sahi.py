@@ -3,8 +3,10 @@ from typing import Dict, List
 import torch
 import torchvision.transforms.v2 as transforms
 from sahi import ObjectPrediction
+from sahi.postprocess.combine import NMSPostprocess
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
 
+from powerlines.data.utils import DETECTOR_INPUT_SIZE
 
 postprocess_bboxes = transforms.Compose([
     transforms.ClampBoundingBoxes(),
@@ -62,3 +64,17 @@ def sahi_object_predictions_to_tensors(
         "labels": torch.as_tensor(labels).long().to(device),
         "scores": torch.as_tensor(scores).to(device)
     }
+
+
+SAHI_POSTPROCESSOR = NMSPostprocess()
+
+
+def sahi_sliced_predictions_to_full_resolution(
+    patch_predictions: List[Dict[str, torch.Tensor]],
+    shifts: torch.Tensor,
+    patch_size: int,
+    device: torch.device
+):
+    merged_patch_predictions = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, DETECTOR_INPUT_SIZE[0])
+    merged_object_predictions = SAHI_POSTPROCESSOR(tensors_to_sahi_object_predictions(merged_patch_predictions))
+    return sahi_object_predictions_to_tensors(merged_object_predictions, device)

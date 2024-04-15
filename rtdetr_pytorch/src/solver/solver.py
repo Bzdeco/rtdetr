@@ -63,7 +63,7 @@ class BaseSolver(object):
             factory.val_dataset(),
             batch_size=1,  # fix to 1 full resolution image which gets sliced
             drop_last=False,
-            shuffle=False,
+            shuffle=True,
             num_workers=self.cfg.val_dataloader.num_workers,
             collate_fn=self.cfg.val_dataloader.collate_fn
         )
@@ -74,7 +74,7 @@ class BaseSolver(object):
             factory.val_dataset(),
             batch_size=1,  # fix to 1 full resolution image which gets sliced
             drop_last=False,
-            shuffle=False,
+            shuffle=True,
             num_workers=self.cfg.val_dataloader.num_workers,
             collate_fn=self.cfg.val_dataloader.collate_fn
         )

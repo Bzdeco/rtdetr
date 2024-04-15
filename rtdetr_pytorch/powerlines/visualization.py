@@ -2,6 +2,7 @@ from typing import Dict
 
 import torch
 from PIL import Image
+from neptune import Run
 from torchvision.transforms.v2.functional import to_pil_image
 from torchvision.utils import draw_bounding_boxes
 
@@ -23,3 +24,21 @@ def visualize_object_detection(
 
     height, width = visualization.shape[-2:]
     return to_pil_image((visualization / 255).float(), mode="RGB").resize((int(width * scale), int(height * scale)))
+
+
+class VisualizationLogger:
+    def __init__(self, run: Run, n_images_per_epoch: int, every: int):
+        self._run = run
+        self._n_images_per_epoch = n_images_per_epoch
+        self._every = every
+
+        self._n_logged = n_images_per_epoch
+        self._current_epoch = 0
+
+    def log(self, epoch: int, image: torch.Tensor, prediction: Dict[str, torch.Tensor], target: Dict[str, torch.Tensor]):
+        if epoch != self._current_epoch:
+            self._current_epoch = epoch
+            self._n_logged = 0
+
+        if epoch % self._every == 0 and self._n_logged < self._n_images_per_epoch:
+            self._run["images"].append(visualize_object_detection(image, prediction, target), step=epoch)

@@ -7,19 +7,18 @@ by lyuwenyu
 
 import math
 import sys
-from typing import Iterable
+from typing import Iterable, Callable
 
 import torch
 import torch.amp
 from neptune import Run
-from sahi.postprocess.combine import NMSPostprocess
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from powerlines.data.utils import cut_into_complete_set_of_patches, inference_augmentations, DETECTOR_INPUT_SIZE, ORIG_SIZE
+from powerlines.data.utils import cut_into_complete_set_of_patches, inference_augmentations, ORIG_SIZE
 from powerlines.evaluation import mean_average_precision
-from powerlines.sahi import merge_patch_boxes_predictions, tensors_to_sahi_object_predictions, \
-    sahi_object_predictions_to_tensors
-from powerlines.visualization import visualize_object_detection
+from powerlines.sahi import sahi_sliced_predictions_to_full_resolution
+from powerlines.visualization import VisualizationLogger
 from src.misc import (MetricsTracker, reduce_dict)
 
 
@@ -87,18 +86,27 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
 
 @torch.no_grad()
-def evaluate(epoch: int, model: torch.nn.Module, criterion: torch.nn.Module, postprocessors, data_loader, device, run: Run):
+def evaluate(
+    epoch: int,
+    model: torch.nn.Module,
+    criterion: torch.nn.Module,
+    detection_postprocessor: Callable,
+    data_loader: DataLoader,
+    device: torch.device,
+    run: Run
+):
     model.eval()
     criterion.eval()
 
     # Create mAP metric
     mAP = mean_average_precision()
+    logger = VisualizationLogger(run, n_images_per_epoch=3, every=1)
+
     preprocess = inference_augmentations()
-    sahi_postprocessor = NMSPostprocess()
     patch_size = 1024
     step_size = 512
 
-    for i, (image, target) in enumerate(tqdm(data_loader, desc="Validating")):
+    for image, target in tqdm(data_loader, desc="Validating"):
         image = image.to(device)
         target = {k: v.to(device) for k, v in target[0].items()}
 
@@ -107,15 +115,12 @@ def evaluate(epoch: int, model: torch.nn.Module, criterion: torch.nn.Module, pos
             input = preprocess(image_patches)
             patch_outputs = model(input)  # assumes this batch size will fit
 
-        patch_predictions = postprocessors(
+        patch_predictions = detection_postprocessor(
             patch_outputs, torch.stack([ORIG_SIZE] * len(image_patches), dim=0).to(device)
         )
-        merged_patch_predictions = merge_patch_boxes_predictions(patch_predictions, shifts, patch_size, DETECTOR_INPUT_SIZE[0])
-        merged_object_predictions = sahi_postprocessor(tensors_to_sahi_object_predictions(merged_patch_predictions))
-        prediction = sahi_object_predictions_to_tensors(merged_object_predictions, device)
+        prediction = sahi_sliced_predictions_to_full_resolution(patch_predictions, shifts, patch_size, device)
 
         _ = mAP([prediction], [target])
-        if i == 0:
-            run["images"].append(visualize_object_detection(image, prediction, target), step=epoch)
+        logger.log(epoch, image, prediction, target)
 
     return mAP.compute()
