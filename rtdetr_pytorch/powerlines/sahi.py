@@ -5,10 +5,10 @@ from typing import Dict, List, Callable, Optional
 import torch
 import torchvision.transforms.v2 as transforms
 from sahi import ObjectPrediction
-from sahi.postprocess.combine import NMSPostprocess
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
 
 from powerlines.data.utils import DETECTOR_INPUT_SIZE, cut_into_complete_set_of_patches
+from powerlines.nms import nms, batched_nms
 
 postprocess_bboxes = transforms.Compose([
     transforms.ClampBoundingBoxes(),
@@ -52,6 +52,29 @@ def tensors_to_sahi_object_predictions(prediction: Dict[str, torch.Tensor]) -> L
     return object_predictions
 
 
+# Rows format: [x1, y1, x2, y2, score, label]
+def vectorized_object_predictions(prediction: Dict[str, torch.Tensor]) -> torch.Tensor:
+    boxes = prediction["boxes"]
+    scores = prediction["scores"]
+    labels = prediction["labels"]
+    print(boxes.shape, scores.shape, labels.shape)
+
+    return torch.concatenate((boxes, scores.unsqueeze(1), labels.unsqueeze(1)), dim=1)
+
+
+def filter_valid_vect(vectorized_predictions: torch.Tensor) -> torch.Tensor:
+    is_valid = torch.logical_and(
+        vectorized_predictions[:, 0] < vectorized_predictions[:, 2],
+        vectorized_predictions[:, 1] < vectorized_predictions[:, 3]
+    )
+    return vectorized_predictions[is_valid]
+
+
+def filter_by_score_vect(vectorized_predictions: torch.Tensor, min_score: float) -> torch.Tensor:
+    have_sufficient_score = vectorized_predictions[:, 4] >= min_score
+    return vectorized_predictions[have_sufficient_score]
+
+
 def sahi_object_predictions_to_tensors(
     object_predictions: List[ObjectPrediction], device: torch.device
 ) -> Dict[str, torch.Tensor]:
@@ -68,7 +91,52 @@ def sahi_object_predictions_to_tensors(
     }
 
 
-SAHI_POSTPROCESSOR = NMSPostprocess()
+def vectorized_object_predictions_to_tensors(vectorized_predictions: torch.Tensor) -> Dict[str, torch.Tensor]:
+    return {
+        "boxes": vectorized_predictions[:, :4],
+        "labels": vectorized_predictions[:, 5].long(),
+        "scores": vectorized_predictions[:, 4]
+    }
+
+
+class VectorizedPostprocessPredictions:
+    """
+    Implementation from SAHI (https://github.com/obss/sahi) adopted to vectorized input
+    Utilities for calculating IOU/IOS based match for given ObjectPredictions
+    """
+
+    def __init__(
+        self,
+        match_threshold: float = 0.5,
+        match_metric: str = "IOU",
+        class_agnostic: bool = True,
+    ):
+        self.match_threshold = match_threshold
+        self.class_agnostic = class_agnostic
+        self.match_metric = match_metric
+
+    def __call__(self, tensor: torch.Tensor):
+        raise NotImplementedError()
+
+
+class VectorizedNMSPostprocess(VectorizedPostprocessPredictions):
+    """
+    Implementation from SAHI (https://github.com/obss/sahi) adopted to vectorized input
+    """
+    def __call__(self, vectorized_predictions: torch.Tensor):
+        if self.class_agnostic:
+            keep = nms(
+                vectorized_predictions, match_threshold=self.match_threshold, match_metric=self.match_metric
+            )
+        else:
+            keep = batched_nms(
+                vectorized_predictions, match_threshold=self.match_threshold, match_metric=self.match_metric
+            )
+
+        return vectorized_predictions[torch.as_tensor(keep)]
+
+
+SAHI_POSTPROCESSOR = VectorizedNMSPostprocess()
 
 
 def is_valid_object_prediction(object_prediction: ObjectPrediction) -> bool:
@@ -84,12 +152,14 @@ def sahi_sliced_predictions_to_full_resolution(
     min_score: Optional[float] = None
 ):
     merged_patch_predictions = merge_patch_boxes_predictions(patch_predictions, shifts, patch_sizes, DETECTOR_INPUT_SIZE[0])
-    object_predictions = list(filter(is_valid_object_prediction, tensors_to_sahi_object_predictions(merged_patch_predictions)))
-    if min_score is not None:
-        object_predictions = list(filter(lambda pred: pred.score.value >= min_score, object_predictions))
+    patch_predictions_vect = vectorized_object_predictions(merged_patch_predictions)
+    patch_predictions_vect = filter_valid_vect(patch_predictions_vect)
 
-    merged_object_predictions = SAHI_POSTPROCESSOR(object_predictions)
-    return sahi_object_predictions_to_tensors(merged_object_predictions, device)
+    if min_score is not None:
+        patch_predictions_vect = filter_by_score_vect(patch_predictions_vect, min_score)
+
+    merged_vectorized_predictions = SAHI_POSTPROCESSOR(patch_predictions_vect)
+    return vectorized_object_predictions_to_tensors(merged_vectorized_predictions.to(device))
 
 
 MultiscalePatches = namedtuple("MultiscalePatches", ["patches", "shifts", "patch_sizes"])
