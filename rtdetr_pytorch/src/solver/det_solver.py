@@ -21,7 +21,9 @@ def log_stats(run: neptune.Run, subset: str, stats: Dict[str, Any]):
                 loss_component_name = name[name.find("_") + 1:]
                 run[f"metrics/{subset}/loss/{loss_component_name}"].log(value)
         elif name.startswith("metrics"):
-            run[f"metrics/{subset}/{name[8:]}"].log(stringify_unsupported(value))
+            formatted_name = name[8:]  # without "metrics/" part
+            for entity, value in value.items():
+                run[f"metrics/{subset}/{formatted_name}/entity"].log(value)
         else:
             run[f"metrics/{subset}/misc/{name}"].log(value)
 
