@@ -9,7 +9,7 @@ from torchvision.utils import draw_bounding_boxes
 
 
 POLES_COLOR = (223, 255, 0)
-EXCLUDED_POLES_COLOR = (176, 228, 255)
+EXCLUDED_POLES_COLOR = (32, 0, 255)
 EXCLUSION_ZONE_COLOR = (255, 255, 255)
 
 
