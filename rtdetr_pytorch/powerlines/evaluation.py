@@ -1,7 +1,10 @@
-from typing import Dict
+from typing import Dict, Tuple, Union
 
+import numpy as np
 import torch
 from torchmetrics.detection import MeanAveragePrecision
+
+from powerlines.ccq import CCQMetric
 
 
 def mean_average_precision():
@@ -13,9 +16,17 @@ def mean_average_precision():
     )
 
 
+def ccq(mask_exclusion_zones: bool):
+    return CCQMetric(
+        bin_thresholds=np.asarray([0.0039, 0.01, 0.05, 0.1, 0.15, 0.1616, 0.2]),  # standard + default + NEVBW 2 cells distance
+        tolerance_region=1.42,
+        mask_exclusion_zones=mask_exclusion_zones
+    )
+
+
 def remove_detections_in_exclusion_zone(
     prediction: Dict[str, torch.Tensor], exclusion_zone: torch.Tensor, return_mask: bool = False
-) -> Dict[str, torch.Tensor]:
+) -> Union[Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], torch.Tensor]]:
     boxes = prediction["boxes"]
     x_center = torch.round((boxes[:, 0] + boxes[:, 2]) / 2).int()
     y_center = torch.round((boxes[:, 1] + boxes[:, 3]) / 2).int()

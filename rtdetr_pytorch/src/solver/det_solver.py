@@ -79,7 +79,7 @@ class DetSolver(BaseSolver):
 
         model = self.ema.module if self.ema else self.model
         val_stats = evaluate(
-            model, self.criterion, self.postprocessor, self.val_dataloader, self.device
+            0, self.cfg_powerlines, model, self.criterion, self.postprocessor, self.val_dataloader, self.device, self.run
         )
         log_stats(self.run, "val", val_stats)
 

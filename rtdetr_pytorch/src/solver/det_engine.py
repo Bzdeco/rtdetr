@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from powerlines.data.utils import inference_augmentations, ORIG_SIZE
-from powerlines.evaluation import mean_average_precision, remove_detections_in_exclusion_zone
+from powerlines.evaluation import mean_average_precision, remove_detections_in_exclusion_zone, ccq
 from powerlines.sahi import sahi_combine_predictions_to_full_resolution, multiscale_image_patches, batch_multiscale_patches
 from powerlines.visualization import VisualizationLogger
 from src.misc import (MetricsTracker, reduce_dict)
@@ -102,9 +102,11 @@ def evaluate(
     model.eval()
     criterion.eval()
 
-    # Create mAP metrics
+    # Create mAP and CCQ metrics
     map_all = mean_average_precision()
     map_exclusion_zones = mean_average_precision()
+    ccq_all = ccq(mask_exclusion_zones=False)
+    ccq_exclusion_zones = ccq(mask_exclusion_zones=True)
 
     logger = VisualizationLogger(run, config)
 
@@ -150,8 +152,15 @@ def evaluate(
 
         # Metrics without exclusion zones
         _ = map_all([prediction], [target])
+        ccq_all(prediction, target)
+        ccq_exclusion_zones(prediction, target)  # exclusion zones handled inside the metric, could do it alternatively here
 
-    return {"metrics/all": dict(map_all.compute()), "metrics/masked": dict(map_exclusion_zones.compute())}
+    return {
+        "metrics/map/all": dict(map_all.compute()),
+        "metrics/map/masked": dict(map_exclusion_zones.compute()),
+        "metrics/ccq/all": ccq_all.compute(),
+        "metrics/ccq/masked": ccq_exclusion_zones.compute()
+    }
 
 
 def move_to_cpu(tensor_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
