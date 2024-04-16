@@ -9,6 +9,7 @@ from torchvision.utils import draw_bounding_boxes
 
 
 POLES_COLOR = (223, 255, 0)
+EXCLUDED_POLES_COLOR = (176, 228, 255)
 EXCLUSION_ZONE_COLOR = (255, 255, 255)
 
 
@@ -20,13 +21,23 @@ def visualize_object_detection(
     image: torch.Tensor,
     prediction: Dict[str, torch.Tensor],
     target: Dict[str, torch.Tensor],
+    pred_not_excluded: torch.Tensor,
+    target_not_excluded: torch.Tensor,
     scale: float = 0.25
 ) -> Image:
     image_uint8 = inference_image_to_uint8(image)
 
-    # Predictions and target boxes
-    pred_visualization = draw_bounding_boxes(image_uint8, prediction["boxes"], colors=POLES_COLOR, width=3)
-    target_visualization = draw_bounding_boxes(image_uint8, target["boxes"], colors=POLES_COLOR, width=3)
+    # Predictions and target boxes outside exclusion zones
+    pred_visualization = draw_bounding_boxes(image_uint8, prediction["boxes"][pred_not_excluded], colors=POLES_COLOR, width=3)
+    target_visualization = draw_bounding_boxes(image_uint8, target["boxes"][target_not_excluded], colors=POLES_COLOR, width=3)
+
+    # Predictions and target boxes in exclusion zones
+    pred_visualization = draw_bounding_boxes(
+        pred_visualization, prediction["boxes"][~pred_not_excluded], colors=EXCLUDED_POLES_COLOR, width=3
+    )
+    target_visualization = draw_bounding_boxes(
+        target_visualization, target["boxes"][~target_not_excluded], colors=EXCLUDED_POLES_COLOR, width=3
+    )
 
     # Exclusion zone boxes
     boxes_exclusion_zone = target["boxes_exclusion_zone"]
@@ -52,14 +63,22 @@ class VisualizationLogger:
         self._n_logged = 0
         self._current_epoch = 0
 
-    def log(self, epoch: int, image: torch.Tensor, prediction: Dict[str, torch.Tensor], target: Dict[str, torch.Tensor]):
+    def visualize(
+        self,
+        epoch: int,
+        image: torch.Tensor,
+        prediction: Dict[str, torch.Tensor],
+        target: Dict[str, torch.Tensor],
+        pred_not_excluded: torch.Tensor,
+        target_not_excluded: torch.Tensor
+    ):
         if epoch != self._current_epoch:
             self._current_epoch = epoch
             self._n_logged = 0
 
         if epoch % self._every == 0 and self._n_logged < self._n_images_per_epoch:
             self._run["images"].append(
-                visualize_object_detection(image, prediction, target),
+                visualize_object_detection(image, prediction, target, pred_not_excluded, target_not_excluded),
                 description=str(epoch)
             )
             self._n_logged += 1

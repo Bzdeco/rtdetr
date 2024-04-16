@@ -138,10 +138,14 @@ def evaluate(
 
         # Consider exclusion zones in predictions and targets, if present
         exclusion_zone = target["exclusion_zone"]
-        prediction_excl_zones = remove_detections_in_exclusion_zone(prediction, exclusion_zone)
-        target_excl_zones = remove_detections_in_exclusion_zone(target, exclusion_zone)
+        prediction_excl_zones, pred_not_excluded = remove_detections_in_exclusion_zone(
+            prediction, exclusion_zone, return_mask=True
+        )
+        target_excl_zones, target_not_excluded = remove_detections_in_exclusion_zone(
+            target, exclusion_zone, return_mask=True
+        )
         _ = map_exclusion_zones([prediction_excl_zones], [target_excl_zones])
-        logger.log(epoch, image, prediction_excl_zones, target_excl_zones)
+        logger.visualize(epoch, image, prediction, target, pred_not_excluded, target_not_excluded)
 
         # Metrics without exclusion zones
         _ = map_all([prediction], [target])

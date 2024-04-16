@@ -14,7 +14,7 @@ def mean_average_precision():
 
 
 def remove_detections_in_exclusion_zone(
-    prediction: Dict[str, torch.Tensor], exclusion_zone: torch.Tensor
+    prediction: Dict[str, torch.Tensor], exclusion_zone: torch.Tensor, return_mask: bool = False
 ) -> Dict[str, torch.Tensor]:
     boxes = prediction["boxes"]
     x_center = torch.round((boxes[:, 0] + boxes[:, 2]) / 2).int()
@@ -29,9 +29,13 @@ def remove_detections_in_exclusion_zone(
     other_keys = set(prediction.keys()).difference({"boxes", "labels", "scores"})
     other_entities = {key: prediction[key] for key in other_keys}
 
-    return {
+    filtered_detections = {
         "boxes": boxes[outside_exclusion_zone],
         "labels": labels,
         "scores": scores,
         **other_entities
     }
+    if return_mask:
+        return filtered_detections, outside_exclusion_zone
+    else:
+        return filtered_detections
