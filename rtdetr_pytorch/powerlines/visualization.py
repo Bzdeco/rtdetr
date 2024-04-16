@@ -9,6 +9,7 @@ from torchvision.utils import draw_bounding_boxes
 
 
 POLES_COLOR = (223, 255, 0)
+EXCLUSION_ZONE_COLOR = (255, 255, 255)
 
 
 def inference_image_to_uint8(image: torch.Tensor) -> torch.Tensor:
@@ -16,13 +17,28 @@ def inference_image_to_uint8(image: torch.Tensor) -> torch.Tensor:
 
 
 def visualize_object_detection(
-    image: torch.Tensor, prediction: Dict[str, torch.Tensor], target: Dict[str, torch.Tensor], scale: float = 0.25
+    image: torch.Tensor,
+    prediction: Dict[str, torch.Tensor],
+    target: Dict[str, torch.Tensor],
+    scale: float = 0.25
 ) -> Image:
     image_uint8 = inference_image_to_uint8(image)
+
+    # Predictions and target boxes
     pred_visualization = draw_bounding_boxes(image_uint8, prediction["boxes"], colors=POLES_COLOR, width=3)
     target_visualization = draw_bounding_boxes(image_uint8, target["boxes"], colors=POLES_COLOR, width=3)
-    visualization = torch.concatenate((pred_visualization, target_visualization), dim=2)
 
+    # Exclusion zone boxes
+    boxes_exclusion_zone = target["boxes_exclusion_zone"]
+    if boxes_exclusion_zone is not None:
+        pred_visualization = draw_bounding_boxes(
+            pred_visualization, boxes_exclusion_zone, colors=EXCLUSION_ZONE_COLOR, width=3
+        )
+        target_visualization = draw_bounding_boxes(
+            target_visualization, boxes_exclusion_zone, colors=EXCLUSION_ZONE_COLOR, width=3
+        )
+
+    visualization = torch.concatenate((pred_visualization, target_visualization), dim=2)
     height, width = visualization.shape[-2:]
     return to_pil_image((visualization / 255).float(), mode="RGB").resize((int(width * scale), int(height * scale)))
 

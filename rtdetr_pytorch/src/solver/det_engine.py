@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from powerlines.data.utils import inference_augmentations, ORIG_SIZE
-from powerlines.evaluation import mean_average_precision
+from powerlines.evaluation import mean_average_precision, remove_detections_in_exclusion_zone
 from powerlines.sahi import sahi_combine_predictions_to_full_resolution, multiscale_image_patches, batch_multiscale_patches
 from powerlines.visualization import VisualizationLogger
 from src.misc import (MetricsTracker, reduce_dict)
@@ -133,6 +133,9 @@ def evaluate(
             device,
             min_score=sahi_config.min_score
         )
+        if target["exclusion_zone"] is not None:
+            prediction = remove_detections_in_exclusion_zone(prediction, target["exclusion_zone"])
+            target = remove_detections_in_exclusion_zone(target, target["exclusion_zone"])
 
         _ = mAP([prediction], [target])
         logger.log(epoch, image, prediction, target)

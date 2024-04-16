@@ -23,9 +23,13 @@ class PowerlinePoleType(Enum):
 
 
 @dataclass
-class PowerlinePole:
+class BoundingBoxAnnotation:
     top_left: Tuple[float, float]
     bottom_right: Tuple[float, float]
+
+
+@dataclass
+class PowerlinePole(BoundingBoxAnnotation):
     type: PowerlinePoleType
 
     @staticmethod
@@ -54,9 +58,7 @@ class PowerlinePole:
 
 
 @dataclass
-class ExclusionZone:
-    top_left: Tuple[float, float]
-    bottom_right: Tuple[float, float]
+class ExclusionZone(BoundingBoxAnnotation):
     polygon: Polygon
 
     @staticmethod

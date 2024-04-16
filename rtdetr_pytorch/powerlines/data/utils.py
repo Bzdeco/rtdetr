@@ -157,12 +157,19 @@ def load_annotations(data_source_config: DataSourceConfig) -> Dict[int, Any]:
 def load_distance_masks(
     data_source_config: DataSourceConfig, loading_config: LoadingConfig, frame_timestamp: int
 ) -> Dict[str, Optional[np.ndarray]]:
+    filename = f"{frame_timestamp}.npy"
+
     frame_poles_distance_mask = load_npy(
-        data_source_config.poles_distance_masks_folder / f"{frame_timestamp}.npy"
+        data_source_config.poles_distance_masks_folder / filename
     ) if loading_config.poles_distance_mask else None
 
+    exclusion_zones_distance_mask = load_npy(
+        data_source_config.exclusion_zones_distance_masks_folder / filename
+    ) if loading_config.exclusion_area_mask else None
+
     return {
-        "poles_distance_mask": frame_poles_distance_mask
+        "poles_distance_mask": frame_poles_distance_mask,
+        "exclusion_zones_distance_mask": exclusion_zones_distance_mask
     }
 
 

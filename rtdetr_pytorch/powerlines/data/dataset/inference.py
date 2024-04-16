@@ -35,23 +35,36 @@ class InferencePolesDetectionDataset(Dataset):
 
     def __getitem__(self, frame_id: int):
         frame = load_complete_frame(self.data_source, self.loading, self.cache[frame_id])
+        annotation = frame["annotation"]
+
         input = tv_tensors.Image(torch.from_numpy(frame["image"]))
-        bounding_boxes = self._bounding_boxes(frame["annotation"])
-        poles_distance_mask = frame.get("poles_distance_mask", None)
+        bounding_boxes = self._bounding_boxes(annotation, "poles")
+        poles_distance_mask = frame.get("poles_distance_mask", None),
+        exclusion_zones_distance_mask = frame.get("exclusion_zones_distance_mask", None)
+        if exclusion_zones_distance_mask is not None:
+            exclusion_zone = (exclusion_zones_distance_mask == 0).squeeze()
+            boxes_exclusion_zone = self._bounding_boxes(annotation, "exclusion_zone")
+        else:
+            exclusion_zone = None
+            boxes_exclusion_zone = None
 
         targets = {
             "boxes": bounding_boxes,
             "labels": torch.as_tensor([0] * len(bounding_boxes)).long(),
-            "poles_distance_mask": torch.from_numpy(poles_distance_mask)
+            "poles_distance_mask": torch.from_numpy(poles_distance_mask),
+            "exclusion_zone": exclusion_zone,
+            "boxes_exclusion_zone": boxes_exclusion_zone
         }
 
         return input, targets
 
-    def _bounding_boxes(self, annotation: ImageAnnotations) -> tv_tensors.BoundingBoxes:
+    def _bounding_boxes(self, annotation: ImageAnnotations, entity: str = "poles") -> tv_tensors.BoundingBoxes:
         bounding_boxes = []
-        for pole in annotation.poles():
-            y_0, x_0 = pole.top_left
-            y_1, x_1 = pole.bottom_right
+        annotated_boxes = annotation.poles() if entity == "poles" else annotation.exclusion_zones
+
+        for box in annotated_boxes:
+            y_0, x_0 = box.top_left
+            y_1, x_1 = box.bottom_right
             bounding_boxes.append([x_0, y_0, x_1, y_1])
 
         return tv_tensors.BoundingBoxes(

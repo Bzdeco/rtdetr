@@ -148,7 +148,7 @@ def sahi_combine_predictions_to_full_resolution(
     patch_sizes: torch.Tensor,
     device: torch.device,
     min_score: Optional[float] = None
-):
+) -> Dict[str, torch.Tensor]:
     merged_patch_predictions = merge_patch_boxes_predictions(patch_predictions, shifts, patch_sizes, DETECTOR_INPUT_SIZE[0])
     patch_predictions_vect = vectorized_object_predictions(merged_patch_predictions)
     patch_predictions_vect = filter_valid_vect(patch_predictions_vect)
