@@ -226,6 +226,7 @@ def load_complete_frame(
         "timestamp": timestamp,
         "image": frame_image,
         "poles_distance_mask": distance_masks["poles_distance_mask"],
+        "exclusion_zones_distance_mask": distance_masks["exclusion_zones_distance_mask"],
         **loaded_frame_data
     }
 

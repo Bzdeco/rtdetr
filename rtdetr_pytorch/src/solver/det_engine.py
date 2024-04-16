@@ -146,4 +146,4 @@ def evaluate(
         # Metrics without exclusion zones
         _ = map_all([prediction], [target])
 
-    return {"metrics/all": map_all.compute(), "metrics/masked": map_exclusion_zones.compute()}
+    return {"metrics/all": dict(map_all.compute()), "metrics/masked": dict(map_exclusion_zones.compute())}

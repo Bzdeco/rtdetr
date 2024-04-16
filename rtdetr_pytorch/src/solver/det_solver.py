@@ -4,6 +4,7 @@ by lyuwenyu
 from typing import Any, Dict
 
 import neptune
+from neptune.utils import stringify_unsupported
 
 from src.misc import dist
 
@@ -20,7 +21,7 @@ def log_stats(run: neptune.Run, subset: str, stats: Dict[str, Any]):
                 loss_component_name = name[name.find("_") + 1:]
                 run[f"metrics/{subset}/loss/{loss_component_name}"].log(value)
         elif name.startswith("metrics"):
-            run[f"metrics/{subset}/{name[8:]}"].log(value)
+            run[f"metrics/{subset}/{name[8:]}"].log(stringify_unsupported(value))
         else:
             run[f"metrics/{subset}/misc/{name}"].log(value)
 

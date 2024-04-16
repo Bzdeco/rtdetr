@@ -39,7 +39,7 @@ class InferencePolesDetectionDataset(Dataset):
 
         input = tv_tensors.Image(torch.from_numpy(frame["image"]))
         bounding_boxes = self._bounding_boxes(annotation, "poles")
-        poles_distance_mask = frame.get("poles_distance_mask", None),
+        poles_distance_mask = frame.get("poles_distance_mask", None)
         exclusion_zones_distance_mask = frame.get("exclusion_zones_distance_mask", None)
         if exclusion_zones_distance_mask is not None:
             exclusion_zone = (exclusion_zones_distance_mask == 0).squeeze()
@@ -52,7 +52,7 @@ class InferencePolesDetectionDataset(Dataset):
             "boxes": bounding_boxes,
             "labels": torch.as_tensor([0] * len(bounding_boxes)).long(),
             "poles_distance_mask": torch.from_numpy(poles_distance_mask),
-            "exclusion_zone": exclusion_zone,
+            "exclusion_zone": torch.from_numpy(exclusion_zone),
             "boxes_exclusion_zone": boxes_exclusion_zone
         }
 

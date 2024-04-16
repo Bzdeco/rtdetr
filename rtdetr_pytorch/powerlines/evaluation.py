@@ -27,7 +27,7 @@ def remove_detections_in_exclusion_zone(
     scores = scores[outside_exclusion_zone] if scores is not None else None
 
     other_keys = set(prediction.keys()).difference({"boxes", "labels", "scores"})
-    other_entities = {prediction[key] for key in other_keys}
+    other_entities = {key: prediction[key] for key in other_keys}
 
     return {
         "boxes": boxes[outside_exclusion_zone],
