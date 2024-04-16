@@ -100,8 +100,10 @@ def evaluate(
     model.eval()
     criterion.eval()
 
-    # Create mAP metric
-    mAP = mean_average_precision()
+    # Create mAP metrics
+    map_all = mean_average_precision()
+    map_exclusion_zones = mean_average_precision()
+
     logger = VisualizationLogger(run, config)
 
     preprocess = inference_augmentations()
@@ -136,11 +138,12 @@ def evaluate(
 
         # Consider exclusion zones in predictions and targets, if present
         exclusion_zone = target["exclusion_zone"]
-        if exclusion_zone is not None:
-            prediction = remove_detections_in_exclusion_zone(prediction, exclusion_zone)
-            target = remove_detections_in_exclusion_zone(target, exclusion_zone)
+        prediction_excl_zones = remove_detections_in_exclusion_zone(prediction, exclusion_zone)
+        target_excl_zones = remove_detections_in_exclusion_zone(target, exclusion_zone)
+        _ = map_exclusion_zones([prediction_excl_zones], [target_excl_zones])
+        logger.log(epoch, image, prediction_excl_zones, target_excl_zones)
 
-        _ = mAP([prediction], [target])
-        logger.log(epoch, image, prediction, target)
+        # Metrics without exclusion zones
+        _ = map_all([prediction], [target])
 
-    return mAP.compute()
+    return {"metrics/all": map_all.compute(), "metrics/masked": map_exclusion_zones.compute()}

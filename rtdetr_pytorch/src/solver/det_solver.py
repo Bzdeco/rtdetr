@@ -19,6 +19,8 @@ def log_stats(run: neptune.Run, subset: str, stats: Dict[str, Any]):
             else:
                 loss_component_name = name[name.find("_") + 1:]
                 run[f"metrics/{subset}/loss/{loss_component_name}"].log(value)
+        elif name.startswith("metrics"):
+            run[f"metrics/{subset}/{name[8:]}"].log(value)
         else:
             run[f"metrics/{subset}/misc/{name}"].log(value)
 

@@ -14,9 +14,6 @@ data:
     fold: null
     folds_select: null
     parallel: []
-  load:
-    poles: true
-    exclusions: false
   size:
     train: null
     val: null

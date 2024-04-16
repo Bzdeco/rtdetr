@@ -30,13 +30,12 @@ def visualize_object_detection(
 
     # Exclusion zone boxes
     boxes_exclusion_zone = target["boxes_exclusion_zone"]
-    if boxes_exclusion_zone is not None:
-        pred_visualization = draw_bounding_boxes(
-            pred_visualization, boxes_exclusion_zone, colors=EXCLUSION_ZONE_COLOR, width=3
-        )
-        target_visualization = draw_bounding_boxes(
-            target_visualization, boxes_exclusion_zone, colors=EXCLUSION_ZONE_COLOR, width=3
-        )
+    pred_visualization = draw_bounding_boxes(
+        pred_visualization, boxes_exclusion_zone, colors=EXCLUSION_ZONE_COLOR, width=3
+    )
+    target_visualization = draw_bounding_boxes(
+        target_visualization, boxes_exclusion_zone, colors=EXCLUSION_ZONE_COLOR, width=3
+    )
 
     visualization = torch.concatenate((pred_visualization, target_visualization), dim=2)
     height, width = visualization.shape[-2:]

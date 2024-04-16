@@ -20,10 +20,9 @@ def data_source(config: DictConfig, subset: str) -> DataSourceConfig:
 
 
 def loading(config: DictConfig) -> LoadingConfig:
-    load_config = config.data.load
     return LoadingConfig(
-        poles_distance_mask=load_config.poles,
-        exclusion_area_mask=load_config.exclusions
+        poles_distance_mask=True,
+        exclusion_area_mask=True
     )
 
 
