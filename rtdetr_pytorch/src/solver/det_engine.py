@@ -133,9 +133,12 @@ def evaluate(
             device,
             min_score=sahi_config.min_score
         )
-        if target["exclusion_zone"] is not None:
-            prediction = remove_detections_in_exclusion_zone(prediction, target["exclusion_zone"])
-            target = remove_detections_in_exclusion_zone(target, target["exclusion_zone"])
+
+        # Consider exclusion zones in predictions and targets, if present
+        exclusion_zone = target["exclusion_zone"]
+        if exclusion_zone is not None:
+            prediction = remove_detections_in_exclusion_zone(prediction, exclusion_zone)
+            target = remove_detections_in_exclusion_zone(target, exclusion_zone)
 
         _ = mAP([prediction], [target])
         logger.log(epoch, image, prediction, target)
