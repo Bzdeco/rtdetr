@@ -7,7 +7,7 @@ by lyuwenyu
 
 import math
 import sys
-from typing import Iterable, Callable
+from typing import Iterable, Callable, Dict
 
 import torch
 import torch.amp
@@ -26,6 +26,7 @@ from src.misc import (MetricsTracker, reduce_dict)
 def train_one_epoch(config: DictConfig, model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, max_norm: float = 0, **kwargs):
+    torch.cuda.empty_cache()
     model.train()
     criterion.train()
     metrics_tracker = MetricsTracker()
@@ -97,6 +98,7 @@ def evaluate(
     device: torch.device,
     run: Run
 ):
+    torch.cuda.empty_cache()
     model.eval()
     criterion.eval()
 
@@ -109,7 +111,7 @@ def evaluate(
     preprocess = inference_augmentations()
     for image, target in tqdm(data_loader, desc="Validating"):
         image = image.to(device)
-        target = {k: v.to(device) for k, v in target[0].items()}
+        target = target[0]
 
         sahi_config = config.sahi
         multiscale_patches = multiscale_image_patches(
@@ -123,16 +125,15 @@ def evaluate(
             for batch in batch_multiscale_patches(
                 multiscale_patches, batch_size=sahi_config.batch_size, preprocess=preprocess
             ):
-                batch_outputs = model(batch)
+                batch_outputs = move_to_cpu(model(batch))
                 patch_predictions.extend(detection_postprocessor(
-                    batch_outputs, torch.stack([ORIG_SIZE] * len(batch), dim=0).to(device)
+                    batch_outputs, torch.stack([ORIG_SIZE] * len(batch), dim=0)
                 ))
 
         prediction = sahi_combine_predictions_to_full_resolution(
             patch_predictions,
             multiscale_patches.shifts,
             multiscale_patches.patch_sizes,
-            device,
             min_score=sahi_config.min_score
         )
 
@@ -151,3 +152,10 @@ def evaluate(
         _ = map_all([prediction], [target])
 
     return {"metrics/all": dict(map_all.compute()), "metrics/masked": dict(map_exclusion_zones.compute())}
+
+
+def move_to_cpu(tensor_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    return {
+        entity: value.detach().cpu()
+        for entity, value in tensor_dict.items()
+    }

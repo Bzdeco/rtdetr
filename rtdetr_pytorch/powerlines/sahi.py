@@ -146,7 +146,6 @@ def sahi_combine_predictions_to_full_resolution(
     patch_predictions: List[Dict[str, torch.Tensor]],
     shifts: torch.Tensor,
     patch_sizes: torch.Tensor,
-    device: torch.device,
     min_score: Optional[float] = None
 ) -> Dict[str, torch.Tensor]:
     merged_patch_predictions = merge_patch_boxes_predictions(patch_predictions, shifts, patch_sizes, DETECTOR_INPUT_SIZE[0])
@@ -157,7 +156,7 @@ def sahi_combine_predictions_to_full_resolution(
         patch_predictions_vect = filter_by_score_vect(patch_predictions_vect, min_score)
 
     merged_vectorized_predictions = SAHI_POSTPROCESSOR(patch_predictions_vect)
-    return vectorized_object_predictions_to_tensors(merged_vectorized_predictions.to(device))
+    return vectorized_object_predictions_to_tensors(merged_vectorized_predictions)
 
 
 MultiscalePatches = namedtuple("MultiscalePatches", ["patches", "shifts", "patch_sizes"])
