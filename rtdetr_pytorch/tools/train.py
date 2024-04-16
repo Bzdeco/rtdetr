@@ -1,13 +1,10 @@
 """by lyuwenyu and Bzdeco
 """
-from hydra import initialize, compose
-from omegaconf import DictConfig
-
 from powerlines.data.seed import set_global_seeds
-
-# TODO: set torch generator and seed worker seeds
 set_global_seeds()
 
+from hydra import initialize, compose
+from omegaconf import DictConfig
 import os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))

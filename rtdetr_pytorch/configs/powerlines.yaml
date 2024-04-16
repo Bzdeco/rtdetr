@@ -9,6 +9,7 @@ data:
   perturbation: 384
   negative_sample_prob: 0.12
   non_sky_bias: 0.5
+  batch_size: 4
   cv:
     num_folds: 5
     fold: null

@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from scipy.ndimage import distance_transform_edt
 
-from powerlines.data.utils import pad_array_to_match_target_size
+from powerlines.data.utils import pad_array_to_match_target_size, MAX_DISTANCE_MASK_VALUE
 
 CCQConfusionMatrix = namedtuple("CCQConfusionMatrix", ["tp", "fp", "fn"])
 
@@ -25,8 +25,10 @@ def downsample(array: np.ndarray, downsampling_factor: int, min_pooling: bool = 
     inversion = -1 if min_pooling else 1
     array = inversion * array
 
-    padded_distance_mask = pad_array_to_match_target_size(array, downsampling_factor, padding_value=array.min())
-    pooled = downsampler(torch.tensor(padded_distance_mask.astype(float)).float())
+    padded_distance_mask = pad_array_to_match_target_size(
+        array[np.newaxis, :, :], downsampling_factor, padding_value=array.min()
+    )
+    pooled = downsampler(torch.tensor(padded_distance_mask.astype(float)).float())[0]
 
     return (inversion * pooled.detach().cpu().numpy()).astype(array.dtype)
 
@@ -58,7 +60,7 @@ def relaxed_confusion_matrix(
     num_thresh = len(bin_thresholds)
     # [num_thresholds, h, w]
     pred_bin_cable = np.repeat(pred_distance_mask[np.newaxis], num_thresh, axis=0) < bin_thresholds[:, np.newaxis, np.newaxis]
-    gt_bin_cable = (target_distance_mask == 0).detach().cpu().numpy()
+    gt_bin_cable = (target_distance_mask == 0)
     gt_distance = distance_transform(gt_bin_cable)
 
     # Compute distance mask from gt and predictions binarized with different thresholds
@@ -67,7 +69,7 @@ def relaxed_confusion_matrix(
         pred_distance[i] = distance_transform(pred_bin_cable[i])
 
     # Compute confusion matrix entries
-    valid_image_area = np.repeat((target_distance_mask != INVALID_MASK_VALUE).detach().cpu().numpy(), num_thresh, axis=0)
+    valid_image_area = np.repeat((target_distance_mask != INVALID_MASK_VALUE)[np.newaxis, :, :], num_thresh, axis=0)
     true_pos_area = np.logical_and(
         np.repeat(gt_distance[np.newaxis, :, :] <= tolerance_region, num_thresh, axis=0), valid_image_area
     )
@@ -159,9 +161,10 @@ class CCQMetric:
         corr = correctness(self._tp, self._fp)
         compl = completeness(self._tp, self._fn)
         qual = quality(self._tp, self._fp, self._fn)
+        thresholds = self._bin_thresholds / MAX_DISTANCE_MASK_VALUE
 
         for metric_name, values in zip(["correctness", "completeness", "quality"], [corr, compl, qual]):
-            for i, threshold in enumerate(self._bin_thresholds):
+            for i, threshold in enumerate(thresholds):
                 results[f"{metric_name}/{threshold:.3f}"] = values[i]
 
         return results

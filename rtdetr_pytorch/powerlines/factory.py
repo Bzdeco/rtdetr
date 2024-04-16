@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Callable
 
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Dataset
@@ -8,6 +7,7 @@ from powerlines.data import seed
 from powerlines.data.config import DataSourceConfig, LoadingConfig, SamplingConfig
 from powerlines.data.dataset.sampling import TrainPolesDetectionDataset
 from powerlines.data.dataset.inference import InferencePolesDetectionDataset
+from src.data.dataloader import default_collate_fn
 
 
 def data_source(config: DictConfig, subset: str) -> DataSourceConfig:
@@ -63,7 +63,6 @@ def dataloader(
     drop_last: bool,
     shuffle: bool,
     num_workers: int,
-    collate_fn: Callable
 ):
     return DataLoader(
         dataset,
@@ -72,7 +71,7 @@ def dataloader(
         shuffle=shuffle,
         pin_memory=True,
         num_workers=num_workers,
-        collate_fn=collate_fn,
+        collate_fn=default_collate_fn,
         generator=seed.torch_generator(),
         worker_init_fn=seed.seed_worker
     )
