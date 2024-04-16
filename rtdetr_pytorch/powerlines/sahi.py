@@ -4,7 +4,6 @@ from typing import Dict, List, Callable, Optional
 
 import torch
 import torchvision.transforms.v2 as transforms
-from sahi import ObjectPrediction
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
 
 from powerlines.data.utils import DETECTOR_INPUT_SIZE, cut_into_complete_set_of_patches
@@ -39,19 +38,6 @@ def merge_patch_boxes_predictions(
     return postprocess_bboxes({"boxes": merged_boxes, "labels": labels, "scores": scores})
 
 
-def tensors_to_sahi_object_predictions(prediction: Dict[str, torch.Tensor]) -> List[ObjectPrediction]:
-    object_predictions = []
-    for box, label, score in zip(prediction["boxes"], prediction["labels"], prediction["scores"]):
-        object_predictions.append(ObjectPrediction(
-            bbox=box.tolist(),
-            category_id=int(label),
-            category_name="pole",
-            score=score,
-            full_shape=[3000, 4096]
-        ))
-    return object_predictions
-
-
 # Rows format: [x1, y1, x2, y2, score, label]
 def vectorized_object_predictions(prediction: Dict[str, torch.Tensor]) -> torch.Tensor:
     boxes = prediction["boxes"]
@@ -71,22 +57,6 @@ def filter_valid_vect(vectorized_predictions: torch.Tensor) -> torch.Tensor:
 def filter_by_score_vect(vectorized_predictions: torch.Tensor, min_score: float) -> torch.Tensor:
     have_sufficient_score = vectorized_predictions[:, 4] >= min_score
     return vectorized_predictions[have_sufficient_score]
-
-
-def sahi_object_predictions_to_tensors(
-    object_predictions: List[ObjectPrediction], device: torch.device
-) -> Dict[str, torch.Tensor]:
-    boxes, labels, scores = [], [], []
-    for object_prediction in object_predictions:
-        boxes.append(torch.as_tensor(object_prediction.bbox.to_xyxy(), dtype=torch.float))
-        labels.append(object_prediction.category.id)
-        scores.append(object_prediction.score.value)
-
-    return {
-        "boxes": torch.stack(boxes, dim=0).to(device),
-        "labels": torch.as_tensor(labels).long().to(device),
-        "scores": torch.as_tensor(scores).to(device)
-    }
 
 
 def vectorized_object_predictions_to_tensors(vectorized_predictions: torch.Tensor) -> Dict[str, torch.Tensor]:
@@ -135,11 +105,6 @@ class VectorizedNMSPostprocess(VectorizedPostprocessPredictions):
 
 
 SAHI_POSTPROCESSOR = VectorizedNMSPostprocess()
-
-
-def is_valid_object_prediction(object_prediction: ObjectPrediction) -> bool:
-    bbox = object_prediction.bbox
-    return bbox.minx < bbox.maxx and bbox.miny < bbox.maxy
 
 
 def sahi_combine_predictions_to_full_resolution(
