@@ -1,11 +1,13 @@
 import math
 from collections import namedtuple
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
+from matplotlib import pyplot as plt
 from scipy.ndimage import distance_transform_edt
 
 from powerlines.data.utils import pad_array_to_match_target_size, MAX_DISTANCE_MASK_VALUE
@@ -17,6 +19,7 @@ DOWNSAMPLING_FACTOR = 32
 
 
 def downsample(array: np.ndarray, downsampling_factor: int, min_pooling: bool = False) -> np.ndarray:
+    input_dtype = array.dtype
     downsampler = nn.MaxPool2d(
         kernel_size=(downsampling_factor, downsampling_factor),
         stride=(downsampling_factor, downsampling_factor)
@@ -30,7 +33,7 @@ def downsample(array: np.ndarray, downsampling_factor: int, min_pooling: bool = 
     )
     pooled = downsampler(torch.tensor(padded_distance_mask.astype(float)).float())[0]
 
-    return (inversion * pooled.detach().cpu().numpy()).astype(array.dtype)
+    return (inversion * pooled.detach().cpu().numpy()).astype(input_dtype)
 
 
 def distance_transform(
@@ -96,7 +99,6 @@ def boxes_ccq_confusion_matrix(
     if mask_exclusion_zones:
         exclusion_zone = downsample(target["exclusion_zone"].numpy(), DOWNSAMPLING_FACTOR, min_pooling=False)
         target_distance_mask[exclusion_zone] = INVALID_MASK_VALUE
-    # TODO: save visualization of these distance masks to verify them
 
     return relaxed_confusion_matrix(
         pred_distance_mask,
@@ -104,6 +106,23 @@ def boxes_ccq_confusion_matrix(
         bin_thresholds,
         tolerance_region
     )
+
+
+def visualize_distance_masks(pred_distance_mask: np.ndarray, target_distance_mask: np.ndarray, masked: bool):
+    cmap = plt.get_cmap("gray").with_extremes(under="red", over="blue")
+    combined = np.concatenate((pred_distance_mask, target_distance_mask), axis=1)
+
+    folder = Path("/scratch/cvlab/home/gwizdala/output/distance_masks_temp")
+    folder.mkdir(exist_ok=True)
+    suffix = "_masked" if masked else ""
+    filename = f"distance_mask_{len(list(folder.glob('*.png')))}{suffix}.png"
+
+    print(np.count_nonzero(combined == INVALID_MASK_VALUE))
+    combined[combined < 158] = 1 - np.clip(combined[combined < 158], a_min=0, a_max=128) / 128
+    combined[combined >= 158] = 2
+    plt.imshow(combined, cmap=cmap, vmin=0, vmax=1)
+    plt.savefig(folder / filename)
+    plt.close()
 
 
 def boxes_to_downsampled_distance_mask(boxes: np.ndarray, downsampling_factor: int) -> np.ndarray:
