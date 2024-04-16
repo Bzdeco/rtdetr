@@ -4,6 +4,7 @@ from typing import Callable
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Dataset
 
+from powerlines.data import seed
 from powerlines.data.config import DataSourceConfig, LoadingConfig, SamplingConfig
 from powerlines.data.dataset.sampling import TrainPolesDetectionDataset
 from powerlines.data.dataset.inference import InferencePolesDetectionDataset
@@ -71,5 +72,7 @@ def dataloader(
         shuffle=shuffle,
         pin_memory=True,
         num_workers=num_workers,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
+        generator=seed.torch_generator(),
+        worker_init_fn=seed.seed_worker
     )
