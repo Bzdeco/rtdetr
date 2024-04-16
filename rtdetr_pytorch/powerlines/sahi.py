@@ -57,8 +57,6 @@ def vectorized_object_predictions(prediction: Dict[str, torch.Tensor]) -> torch.
     boxes = prediction["boxes"]
     scores = prediction["scores"]
     labels = prediction["labels"]
-    print(boxes.shape, scores.shape, labels.shape)
-
     return torch.concatenate((boxes, scores.unsqueeze(1), labels.unsqueeze(1)), dim=1)
 
 
