@@ -12,19 +12,20 @@ from typing import Iterable, Callable
 import torch
 import torch.amp
 from neptune import Run
+from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from powerlines.data.utils import inference_augmentations, ORIG_SIZE
 from powerlines.evaluation import mean_average_precision
-from powerlines.sahi import sahi_sliced_predictions_to_full_resolution, multiscale_image_patches, batch_multiscale_patches
+from powerlines.sahi import sahi_combine_predictions_to_full_resolution, multiscale_image_patches, batch_multiscale_patches
 from powerlines.visualization import VisualizationLogger
 from src.misc import (MetricsTracker, reduce_dict)
 
 
-def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
+def train_one_epoch(config: DictConfig, model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
-                    device: torch.device, epoch: int, max_norm: float = 0, **kwargs):
+                    device: torch.device, max_norm: float = 0, **kwargs):
     model.train()
     criterion.train()
     metrics_tracker = MetricsTracker()
@@ -88,6 +89,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 @torch.no_grad()
 def evaluate(
     epoch: int,
+    config: DictConfig,
     model: torch.nn.Module,
     criterion: torch.nn.Module,
     detection_postprocessor: Callable,
@@ -100,31 +102,36 @@ def evaluate(
 
     # Create mAP metric
     mAP = mean_average_precision()
-    logger = VisualizationLogger(run, n_images_per_epoch=3, every=1)
+    logger = VisualizationLogger(run, config)
 
     preprocess = inference_augmentations()
-    step_size_fraction = 0.5
-
     for image, target in tqdm(data_loader, desc="Validating"):
         image = image.to(device)
         target = {k: v.to(device) for k, v in target[0].items()}
 
-        multiscale_patches = multiscale_image_patches(image, [1024, 512, 256], step_size_fraction)
+        sahi_config = config.sahi
+        multiscale_patches = multiscale_image_patches(
+            image,
+            patch_sizes=sahi_config.patch_sizes,
+            step_size_fraction=sahi_config.step_size_fraction
+        )
 
         patch_predictions = []
         with torch.autocast(device_type=str(device)):
-            for batch in tqdm(
-                batch_multiscale_patches(multiscale_patches, batch_size=8, preprocess=preprocess),
-                desc="SAHI"
+            for batch in batch_multiscale_patches(
+                multiscale_patches, batch_size=sahi_config.batch_size, preprocess=preprocess
             ):
                 batch_outputs = model(batch)
                 patch_predictions.extend(detection_postprocessor(
                     batch_outputs, torch.stack([ORIG_SIZE] * len(batch), dim=0).to(device)
                 ))
 
-        # FIXME: min_score threshold
-        prediction = sahi_sliced_predictions_to_full_resolution(
-            patch_predictions, multiscale_patches.shifts, multiscale_patches.patch_sizes, device, min_score=0.5
+        prediction = sahi_combine_predictions_to_full_resolution(
+            patch_predictions,
+            multiscale_patches.shifts,
+            multiscale_patches.patch_sizes,
+            device,
+            min_score=sahi_config.min_score
         )
 
         _ = mAP([prediction], [target])

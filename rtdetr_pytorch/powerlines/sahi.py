@@ -144,7 +144,7 @@ def is_valid_object_prediction(object_prediction: ObjectPrediction) -> bool:
     return bbox.minx < bbox.maxx and bbox.miny < bbox.maxy
 
 
-def sahi_sliced_predictions_to_full_resolution(
+def sahi_combine_predictions_to_full_resolution(
     patch_predictions: List[Dict[str, torch.Tensor]],
     shifts: torch.Tensor,
     patch_sizes: torch.Tensor,

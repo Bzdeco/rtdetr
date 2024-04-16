@@ -9,46 +9,51 @@ from powerlines.data.dataset.sampling import TrainPolesDetectionDataset
 from powerlines.data.dataset.inference import InferencePolesDetectionDataset
 
 
-def data_source(subset: str) -> DataSourceConfig:
+def data_source(config: DictConfig, subset: str) -> DataSourceConfig:
+    paths_config = config.paths
     return DataSourceConfig(
-        complete_frames_root_folder=Path("/scratch/cvlab/home/gwizdala/dataset/processed/daedalean/complete_frames"),
-        annotations_path=Path("/scratch/cvlab/home/gwizdala/dataset/daedalean/cable-annotations"),
+        complete_frames_root_folder=Path(paths_config.complete_frames),
+        annotations_path=Path(paths_config.annotations),
         data_source_subset=subset,
-        cv_config=DictConfig({"num_folds": 5, "fold": None, "folds_select": None, "parallel": []})
+        cv_config=config.data.cv
     )
 
 
-def loading() -> LoadingConfig:
+def loading(config: DictConfig) -> LoadingConfig:
+    load_config = config.data.load
     return LoadingConfig(
-        poles_distance_mask=True,
-        exclusion_area_mask=False
+        poles_distance_mask=load_config.poles,
+        exclusion_area_mask=load_config.exclusions
     )
 
 
-def sampling() -> SamplingConfig:
+def sampling(config: DictConfig) -> SamplingConfig:
+    data_config = config.data
     return SamplingConfig(
-        patch_size=1024,
-        perturbation_size=384,
-        negative_sample_prob=0.12,
-        non_sky_bias=0.5,
+        patch_size=data_config.patch_size,
+        perturbation_size=data_config.perturbation,
+        negative_sample_prob=data_config.negative_sample_prob,
+        non_sky_bias=data_config.non_sky_bias,
         remove_excluded_area=True
     )
 
 
-def train_dataset(with_augmentations: bool = True) -> TrainPolesDetectionDataset:
+def train_dataset(config: DictConfig, with_augmentations: bool = True) -> TrainPolesDetectionDataset:
     return TrainPolesDetectionDataset(
-        data_source=data_source("train"),
-        loading=loading(),
-        sampling=sampling(),
-        with_augmentations=with_augmentations
+        data_source=data_source(config, "train"),
+        loading=loading(config),
+        sampling=sampling(config),
+        with_augmentations=with_augmentations,
+        num_frames=config.data.size.train
     )
 
 
-def val_dataset() -> InferencePolesDetectionDataset:
+def val_dataset(config: DictConfig) -> InferencePolesDetectionDataset:
     return InferencePolesDetectionDataset(
-        data_source=data_source("val"),
-        loading=loading(),
-        sampling=sampling()
+        data_source=data_source(config, "val"),
+        loading=loading(config),
+        sampling=sampling(config),
+        num_frames=config.data.size.val
     )
 
 

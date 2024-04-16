@@ -1,0 +1,39 @@
+name: rt-detr-poles
+
+checkpoint:
+  resume: false
+  run_id: null
+
+data:
+  patch_size: 1024
+  perturbation: 384
+  negative_sample_prob: 0.12
+  non_sky_bias: 0.5
+  cv:
+    num_folds: 5
+    fold: null
+    folds_select: null
+    parallel: []
+  load:
+    poles: true
+    exclusions: false
+  size:
+    train: null
+    val: null
+
+paths:
+  complete_frames: /scratch/cvlab/home/gwizdala/dataset/processed/daedalean/complete_frames
+  annotations: /scratch/cvlab/home/gwizdala/dataset/daedalean/cable-annotations
+
+sahi:
+  step_size_fraction: 0.5
+  patch_sizes:
+    - 256
+    - 512
+    - 1024
+  batch_size: 8
+  min_score: 0.5
+
+visualization:
+  n_images_per_epoch: 3
+  every: 1

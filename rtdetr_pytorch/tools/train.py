@@ -1,5 +1,8 @@
 """by lyuwenyu and Bzdeco
 """
+from hydra import initialize, compose
+from omegaconf import DictConfig
+
 from powerlines.data.seed import set_global_seeds
 
 # TODO: set torch generator and seed worker seeds
@@ -13,7 +16,21 @@ import argparse
 
 import src.misc.dist as dist 
 from src.core import YAMLConfig 
-from src.solver import TASKS
+from src.solver import DetSolver
+
+
+def rt_detr_config(args: argparse.Namespace) -> YAMLConfig:
+    return YAMLConfig(
+        args.config,
+        resume=args.resume,
+        use_amp=args.amp,
+        tuning=args.tuning
+    )
+
+
+def powerlines_config() -> DictConfig:
+    with initialize(version_base=None, config_path="../configs"):
+        return compose(config_name="powerlines")
 
 
 def main(args) -> None:
@@ -22,14 +39,10 @@ def main(args) -> None:
     assert not all([args.tuning, args.resume]), \
         'Only support from_scratch or resume or tuning at one time'
 
-    cfg = YAMLConfig(
-        args.config,
-        resume=args.resume, 
-        use_amp=args.amp,
-        tuning=args.tuning
-    )
-
-    solver = TASKS[cfg.yaml_cfg['task']](cfg)
+    # Create and configure solver
+    cfg = rt_detr_config(args)
+    cfg_powerlines = powerlines_config()
+    solver = DetSolver(cfg, cfg_powerlines)
     
     if args.test_only:
         solver.val()
@@ -45,6 +58,4 @@ if __name__ == '__main__':
     parser.add_argument('--test-only', action='store_true', default=False)
     parser.add_argument('--amp', action='store_true', default=True)
 
-    args = parser.parse_args()
-
-    main(args)
+    main(parser.parse_args())

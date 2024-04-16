@@ -24,7 +24,6 @@ def log_stats(run: neptune.Run, subset: str, stats: Dict[str, Any]):
 
 
 class DetSolver(BaseSolver):
-    
     def fit(self):
         print("Start training")
         self.train()
@@ -40,14 +39,13 @@ class DetSolver(BaseSolver):
 
             # Train single epoch
             train_stats = train_one_epoch(
+                self.cfg_powerlines,
                 self.model,
                 self.criterion,
                 self.train_dataloader,
                 self.optimizer,
                 self.device,
-                epoch,
-                args.clip_max_norm,
-                print_freq=args.log_step,
+                max_norm=args.clip_max_norm,
                 ema=self.ema,
                 scaler=self.scaler)
             self.lr_scheduler.step()
@@ -58,7 +56,16 @@ class DetSolver(BaseSolver):
 
             # Validate
             model = self.ema.module if self.ema else self.model
-            val_stats = evaluate(epoch, model, self.criterion, self.postprocessor, self.val_dataloader, self.device, self.run)
+            val_stats = evaluate(
+                epoch,
+                self.cfg_powerlines,
+                model,
+                self.criterion,
+                self.postprocessor,
+                self.val_dataloader,
+                self.device,
+                self.run
+            )
 
             # Validation metrics
             log_stats(self.run, "val", val_stats)

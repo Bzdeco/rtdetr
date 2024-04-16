@@ -3,6 +3,7 @@ from typing import Dict
 import torch
 from PIL import Image
 from neptune import Run
+from omegaconf import DictConfig
 from torchvision.transforms.v2.functional import to_pil_image
 from torchvision.utils import draw_bounding_boxes
 
@@ -27,10 +28,11 @@ def visualize_object_detection(
 
 
 class VisualizationLogger:
-    def __init__(self, run: Run, n_images_per_epoch: int, every: int):
+    def __init__(self, run: Run, config: DictConfig):
         self._run = run
-        self._n_images_per_epoch = n_images_per_epoch
-        self._every = every
+        visualization_config = config.visualization
+        self._n_images_per_epoch = visualization_config.n_images_per_epoch
+        self._every = visualization_config.every
 
         self._n_logged = 0
         self._current_epoch = 0

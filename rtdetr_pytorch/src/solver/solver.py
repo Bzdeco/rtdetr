@@ -7,6 +7,9 @@ from datetime import datetime
 from pathlib import Path 
 from typing import Dict
 
+from neptune.utils import stringify_unsupported
+from omegaconf import DictConfig
+
 from powerlines import factory
 from powerlines.logger import create_neptune_run, run_id
 from src.misc import dist
@@ -14,9 +17,16 @@ from src.core import BaseConfig
 
 
 class BaseSolver(object):
-    def __init__(self, cfg: BaseConfig) -> None:
+    def __init__(self, cfg: BaseConfig, cfg_powerlines: DictConfig) -> None:
         self.cfg = cfg
-        self.run = create_neptune_run("rt-detr-poles")
+        self.cfg_powerlines = cfg_powerlines
+
+        self.run = create_neptune_run(
+            name=cfg_powerlines.name,
+            resume=cfg_powerlines.checkpoint.resume,
+            from_run_id=cfg_powerlines.checkpoint.run_id
+        )
+        self.run["config"] = stringify_unsupported(self.cfg_powerlines)
 
     def setup(self):
         '''Avoid instantiating unnecessary classes 
@@ -52,7 +62,7 @@ class BaseSolver(object):
             self.resume(self.cfg.resume)
 
         self.train_dataloader = factory.dataloader(
-            factory.train_dataset(),
+            factory.train_dataset(self.cfg_powerlines),
             batch_size=self.cfg.train_dataloader.batch_size,
             drop_last=self.cfg.train_dataloader.drop_last,
             shuffle=True,
@@ -60,7 +70,7 @@ class BaseSolver(object):
             collate_fn=self.cfg.train_dataloader.collate_fn
         )
         self.val_dataloader = factory.dataloader(
-            factory.val_dataset(),
+            factory.val_dataset(self.cfg_powerlines),
             batch_size=1,  # fix to 1 full resolution image which gets sliced
             drop_last=False,
             shuffle=True,
@@ -71,7 +81,7 @@ class BaseSolver(object):
     def eval(self):
         self.setup()
         self.val_dataloader = factory.dataloader(
-            factory.val_dataset(),
+            factory.val_dataset(self.cfg_powerlines),
             batch_size=1,  # fix to 1 full resolution image which gets sliced
             drop_last=False,
             shuffle=True,
@@ -189,8 +199,8 @@ class BaseSolver(object):
 
         return matched_state, {'missed': missed_list, 'unmatched': unmatched_list}
 
-    def fit(self, ):
-        raise NotImplementedError('')
+    def fit(self):
+        raise NotImplementedError
 
-    def val(self, ):
-        raise NotImplementedError('')
+    def val(self):
+        raise NotImplementedError
