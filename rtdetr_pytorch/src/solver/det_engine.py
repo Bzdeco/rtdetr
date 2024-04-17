@@ -119,7 +119,8 @@ def evaluate(
         multiscale_patches = multiscale_image_patches(
             image,
             patch_sizes=sahi_config.patch_sizes,
-            step_size_fraction=sahi_config.step_size_fraction
+            step_size_fraction=sahi_config.step_size_fraction,
+            predict_on_full_image=sahi_config.predict_on_full_image
         )
 
         patch_predictions = []

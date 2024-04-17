@@ -29,6 +29,7 @@ sahi:
     - 256
     - 512
     - 1024
+  predict_on_full_image: true
   batch_size: 8
   min_score: 0.5
 
