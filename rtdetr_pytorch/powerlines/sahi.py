@@ -143,9 +143,11 @@ def multiscale_image_patches(
 
     if predict_on_full_image:
         vertical_padding = 548  # = (4096 (width) - 3000 (height)) / 2
-        padded_image = torch.nn.functional.pad(image, (0, 0, vertical_padding, vertical_padding), mode="constant", value=0)
+        padded_image = torch.nn.functional.pad(
+            image.squeeze(0), (0, 0, vertical_padding, vertical_padding), mode="constant", value=0
+        )
         image_patches.append(padded_image)
-        shifts.append(torch.as_tensor([0, 0]))
+        shifts.append(torch.as_tensor([0, -vertical_padding]))
         sizes.append(4096)
 
     return MultiscalePatches(patches=image_patches, shifts=torch.stack(shifts), patch_sizes=torch.as_tensor(sizes))
