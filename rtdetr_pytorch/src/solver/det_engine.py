@@ -34,7 +34,8 @@ def train_one_epoch(config: DictConfig, model: torch.nn.Module, criterion: torch
     ema = kwargs.get('ema', None)
     scaler = kwargs.get('scaler', None)
 
-    for samples, targets in tqdm(data_loader, desc="Training"):
+    iterator = tqdm(data_loader, desc="Training") if config.verbose else data_loader
+    for samples, targets in iterator:
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -111,7 +112,8 @@ def evaluate(
     logger = VisualizationLogger(run, config)
 
     preprocess = inference_augmentations()
-    for image, target in tqdm(data_loader, desc="Validating"):
+    iterator = tqdm(data_loader, desc="Validating") if config.verbose else data_loader
+    for image, target in iterator:
         image = image.to(device)
         target = target[0]
 
