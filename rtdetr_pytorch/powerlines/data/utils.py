@@ -12,6 +12,7 @@ from torchvision.transforms import InterpolationMode
 from powerlines.data.annotations import ImageAnnotations
 from powerlines.data.config import DataSourceConfig, SamplingConfig, LoadingConfig, _filter_excluded_filepaths, \
     _filter_selected_filepaths, num_pole_samples_in_frame
+from powerlines.data.dataset.transforms import RandomIoUCrop, NormalizeBoundingBoxes
 from powerlines.utils import load_npy
 
 INVALID_MASK_VALUE = np.iinfo(np.uint16).max
@@ -242,13 +243,14 @@ def train_augmentations():
         transforms.RandomPhotometricDistort(
             brightness=(0.875, 1.125), contrast=(0.5, 1.5), hue=(-0.05, 0.05), saturation=(0.5, 1.5), p=0.5
         ),
-        transforms.RandomIoUCrop(min_scale=1/8, max_scale=1, min_aspect_ratio=1, max_aspect_ratio=1, trials=40),
+        RandomIoUCrop(min_scale=1/8, max_scale=1, min_aspect_ratio=1, max_aspect_ratio=1, trials=40, p=0.8),
         transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.Resize(size=DETECTOR_INPUT_SIZE, interpolation=InterpolationMode.BILINEAR),
         transforms.ConvertImageDtype(dtype=torch.float32),
         transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
-        transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH)
+        transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH),
+        NormalizeBoundingBoxes()
     ])
 
 
@@ -259,6 +261,7 @@ def evaluation_augmentations():
         transforms.ConvertImageDtype(dtype=torch.float32),
         transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
         transforms.ConvertBoundingBoxFormat(tv_tensors.BoundingBoxFormat.CXCYWH),
+        NormalizeBoundingBoxes(),
         transforms.ToPureTensor()
     ])
 
