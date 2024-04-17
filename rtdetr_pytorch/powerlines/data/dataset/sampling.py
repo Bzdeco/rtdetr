@@ -78,7 +78,7 @@ class TrainPolesDetectionDataset(Dataset):
 
         targets = {
             "boxes": bounding_boxes,
-            "labels": torch.as_tensor([0] * len(bounding_boxes)),
+            "labels": torch.as_tensor([1] * len(bounding_boxes)),
         }
 
         input_aug, targets_aug = self.augmentations(input, targets)
