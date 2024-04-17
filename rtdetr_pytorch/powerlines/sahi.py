@@ -101,7 +101,7 @@ class VectorizedNMSPostprocess(VectorizedPostprocessPredictions):
                 vectorized_predictions, match_threshold=self.match_threshold, match_metric=self.match_metric
             )
 
-        return vectorized_predictions[torch.as_tensor(keep)]
+        return vectorized_predictions[torch.as_tensor(keep).long()]
 
 
 SAHI_POSTPROCESSOR = VectorizedNMSPostprocess()
