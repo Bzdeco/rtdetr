@@ -106,8 +106,9 @@ def evaluate(
     # Create mAP and CCQ metrics
     map_all = mean_average_precision()
     map_exclusion_zones = mean_average_precision()
-    ccq_all = ccq(mask_exclusion_zones=False)
-    ccq_exclusion_zones = ccq(mask_exclusion_zones=True)
+    downsampling_factor = config.data.downsampling_factor
+    ccq_all = ccq(downsampling_factor=downsampling_factor, mask_exclusion_zones=False)
+    ccq_exclusion_zones = ccq(downsampling_factor=downsampling_factor, mask_exclusion_zones=True)
 
     logger = VisualizationLogger(run, config)
 

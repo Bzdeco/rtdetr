@@ -15,7 +15,6 @@ from powerlines.data.utils import pad_array_to_match_target_size, MAX_DISTANCE_M
 CCQConfusionMatrix = namedtuple("CCQConfusionMatrix", ["tp", "fp", "fn"])
 
 INVALID_MASK_VALUE = np.iinfo(np.uint16).max
-DOWNSAMPLING_FACTOR = 32
 
 
 def downsample(array: np.ndarray, downsampling_factor: int, min_pooling: bool = False) -> np.ndarray:
@@ -91,13 +90,14 @@ def boxes_ccq_confusion_matrix(
     target: Dict[str, torch.Tensor],
     bin_thresholds: np.ndarray,
     tolerance_region: float,
+    downsampling_factor: int,
     mask_exclusion_zones: bool = False
 ) -> CCQConfusionMatrix:
-    pred_distance_mask = boxes_to_downsampled_distance_mask(prediction["boxes"].numpy(), DOWNSAMPLING_FACTOR)
-    target_distance_mask = boxes_to_downsampled_distance_mask(target["boxes"].numpy(), DOWNSAMPLING_FACTOR)
+    pred_distance_mask = boxes_to_downsampled_distance_mask(prediction["boxes"].numpy(), downsampling_factor)
+    target_distance_mask = boxes_to_downsampled_distance_mask(target["boxes"].numpy(), downsampling_factor)
 
     if mask_exclusion_zones:
-        exclusion_zone = downsample(target["exclusion_zone"].numpy(), DOWNSAMPLING_FACTOR, min_pooling=False)
+        exclusion_zone = downsample(target["exclusion_zone"].numpy(), downsampling_factor, min_pooling=False)
         target_distance_mask[exclusion_zone] = INVALID_MASK_VALUE
 
     return relaxed_confusion_matrix(
@@ -156,9 +156,12 @@ def quality(
 
 @dataclass
 class CCQMetric:
-    def __init__(self, bin_thresholds: np.ndarray, tolerance_region: float, mask_exclusion_zones: bool = False):
+    def __init__(
+        self, bin_thresholds: np.ndarray, tolerance_region: float, downsampling_factor: int, mask_exclusion_zones: bool = False
+    ):
         self._bin_thresholds = bin_thresholds
         self._tolerance_region = tolerance_region
+        self._downsampling_factor = downsampling_factor
         self._mask_exclusion_zones = mask_exclusion_zones
 
         n_thresholds = len(bin_thresholds)
@@ -168,7 +171,12 @@ class CCQMetric:
 
     def __call__(self, prediction: Dict[str, torch.Tensor], target: Dict[str, torch.Tensor]):
         conf_matrix = boxes_ccq_confusion_matrix(
-            prediction, target, self._bin_thresholds, self._tolerance_region, self._mask_exclusion_zones
+            prediction,
+            target,
+            self._bin_thresholds,
+            self._tolerance_region,
+            self._downsampling_factor,
+            self._mask_exclusion_zones
         )
         self._tp += conf_matrix.tp
         self._fp += conf_matrix.fp

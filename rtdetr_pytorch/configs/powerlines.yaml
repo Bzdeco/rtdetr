@@ -5,6 +5,7 @@ checkpoint:
   run_id: null
 
 data:
+  downsampling_factor: 16
   patch_size: 1024
   perturbation: 384
   negative_sample_prob: 0.12

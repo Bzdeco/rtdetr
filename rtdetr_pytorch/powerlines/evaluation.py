@@ -17,11 +17,12 @@ def mean_average_precision():
     )
 
 
-def ccq(mask_exclusion_zones: bool):
+def ccq(downsampling_factor: int, mask_exclusion_zones: bool):
     return CCQMetric(
         # standard + default + NEVBW 2 cells distance, rescaled to full range (as distance mask are generated and not clamped)
         bin_thresholds=np.asarray([0.0039, 0.01, 0.05, 0.1, 0.15, 0.1616, 0.2]) * MAX_DISTANCE_MASK_VALUE,
         tolerance_region=1.42,
+        downsampling_factor=downsampling_factor,
         mask_exclusion_zones=mask_exclusion_zones
     )
 
