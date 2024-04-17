@@ -1,6 +1,6 @@
+from random import random
 from typing import Any, Dict
 
-import torch
 import torchvision.transforms.v2 as tv_transforms
 
 from torchvision import tv_tensors
@@ -14,7 +14,7 @@ class RandomIoUCrop(tv_transforms.RandomIoUCrop):
         self._p = p
 
     def _transform(self, inpt: Any, params: Dict[str, Any]) -> Any:
-        if torch.rand() < self._p:
+        if random() < self._p:
             return super()._transform(inpt, params)
         return inpt
 
@@ -23,6 +23,5 @@ class NormalizeBoundingBoxes(tv_transforms.Transform):
     _transformed_types = (tv_tensors.BoundingBoxes,)
 
     def _transform(self, inpt: Any, params: Dict[str, Any]) -> Any:
-        spatial_size = inpt.spatial_size
-        print("spatial_size", spatial_size)
+        spatial_size = inpt.canvas_size[0]
         return inpt / spatial_size
