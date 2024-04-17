@@ -151,7 +151,7 @@ def evaluate(
             target, exclusion_zone, return_mask=True
         )
         _ = map_exclusion_zones([prediction_excl_zones], [target_excl_zones])
-        logger.visualize(epoch, image, prediction, target, pred_not_excluded, target_not_excluded)
+        logger.visualize(epoch, image.detach().cpu(), prediction, target, pred_not_excluded, target_not_excluded)
 
         # Metrics without exclusion zones
         _ = map_all([prediction], [target])
