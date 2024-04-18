@@ -30,6 +30,7 @@ class BaseSolver(object):
             assert checkpoint_config.epoch is not None, "Checkpoint epoch not set"
             filename = self._filename(checkpoint_config.epoch)
             self.cfg.resume = str(CHECKPOINTS_FOLDER / str(cfg_powerlines.checkpoint.run_id) / filename)
+            print(f"Resuming experiment {cfg_powerlines.checkpoint.run_id} from {self.cfg.resume}")
 
         self.run = create_neptune_run(
             name=cfg_powerlines.name,
