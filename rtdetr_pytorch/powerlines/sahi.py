@@ -139,7 +139,7 @@ def multiscale_image_patches(
         scale_patches, scale_shifts = cut_into_complete_set_of_patches(image.squeeze(), patch_size, step_size)
         image_patches.extend(scale_patches)
         shifts.extend(scale_shifts)
-        sizes.extend([patch_size] * len(image_patches))
+        sizes.extend([patch_size] * len(scale_patches))
 
     if predict_on_full_image:
         vertical_padding = 548  # = (4096 (width) - 3000 (height)) / 2
