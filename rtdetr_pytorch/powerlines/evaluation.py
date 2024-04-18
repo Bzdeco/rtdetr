@@ -31,8 +31,8 @@ def remove_detections_in_exclusion_zone(
     prediction: Dict[str, torch.Tensor], exclusion_zone: torch.Tensor, return_mask: bool = False
 ) -> Union[Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], torch.Tensor]]:
     boxes = prediction["boxes"]
-    x_center = torch.round((boxes[:, 0] + boxes[:, 2]) / 2).int()
-    y_center = torch.round((boxes[:, 1] + boxes[:, 3]) / 2).int()
+    x_center = torch.minimum(torch.round((boxes[:, 0] + boxes[:, 2]) / 2).int(), torch.tensor(4095))
+    y_center = torch.minimum(torch.round((boxes[:, 1] + boxes[:, 3]) / 2).int(), torch.tensor(2999))
     outside_exclusion_zone = torch.logical_not(exclusion_zone[y_center, x_center])
 
     labels = prediction.get("labels", None)
