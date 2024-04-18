@@ -10,7 +10,7 @@ from torchvision import tv_tensors
 from powerlines.data.annotations import ImageAnnotations
 from powerlines.data.config import DataSourceConfig, LoadingConfig, SamplingConfig
 from powerlines.data.utils import load_filtered_filepaths, sample_patch_center, load_annotations, train_augmentations, \
-    evaluation_augmentations, load_parameters_for_sampling, load_complete_frame, ORIG_SIZE, MAX_DISTANCE_MASK_VALUE
+    evaluation_augmentations, load_parameters_for_sampling, load_complete_frame, ORIG_SIZE, MAX_DISTANCE_MASK_VALUE, POLE_LABEL
 from powerlines.utils import parallelize
 
 
@@ -78,7 +78,7 @@ class TrainPolesDetectionDataset(Dataset):
 
         targets = {
             "boxes": bounding_boxes,
-            "labels": torch.as_tensor([1] * len(bounding_boxes)),
+            "labels": torch.as_tensor([POLE_LABEL] * len(bounding_boxes)),
         }
 
         input_aug, targets_aug = self.augmentations(input, targets)

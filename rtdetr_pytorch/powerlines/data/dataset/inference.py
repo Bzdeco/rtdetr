@@ -6,8 +6,7 @@ from torchvision import tv_tensors
 
 from powerlines.data.annotations import ImageAnnotations
 from powerlines.data.config import DataSourceConfig, LoadingConfig, SamplingConfig
-from powerlines.data.utils import load_filtered_filepaths, load_annotations, load_complete_frame
-
+from powerlines.data.utils import load_filtered_filepaths, load_annotations, load_complete_frame, POLE_LABEL
 
 ORIG_SIZE = torch.tensor([3000, 4096])
 
@@ -50,7 +49,7 @@ class InferencePolesDetectionDataset(Dataset):
 
         targets = {
             "boxes": bounding_boxes,
-            "labels": torch.as_tensor([0] * len(bounding_boxes)).long(),
+            "labels": torch.as_tensor([POLE_LABEL] * len(bounding_boxes)).long(),
             "poles_distance_mask": torch.from_numpy(poles_distance_mask),
             "exclusion_zone": torch.from_numpy(exclusion_zone),
             "boxes_exclusion_zone": boxes_exclusion_zone

@@ -155,8 +155,6 @@ def evaluate(
         logger.visualize(epoch, image.detach().cpu(), prediction, target, pred_not_excluded, target_not_excluded)
 
         # Metrics without exclusion zones
-        # print("pred labels", prediction["labels"])
-        # print("target labels", target["labels"])
         _ = map_all([prediction], [target])
         ccq_all(prediction, target)
         ccq_exclusion_zones(prediction, target)  # exclusion zones handled inside the metric, could do it alternatively here

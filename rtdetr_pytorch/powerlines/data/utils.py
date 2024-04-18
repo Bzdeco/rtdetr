@@ -16,6 +16,7 @@ from powerlines.data.dataset.transforms import RandomIoUCrop, NormalizeBoundingB
 from powerlines.utils import load_npy
 
 INVALID_MASK_VALUE = np.iinfo(np.uint16).max
+POLE_LABEL = 1
 
 
 def load_filepaths(data_source_config) -> List[Path]:
