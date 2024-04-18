@@ -82,9 +82,3 @@ class DetSolver(BaseSolver):
             0, self.cfg_powerlines, model, self.criterion, self.postprocessor, self.val_dataloader, self.device, self.run
         )
         log_stats(self.run, "val", val_stats)
-
-    def save_checkpoint(self, epoch: int):
-        if self.output_dir:
-            checkpoint_paths = [self.output_dir / f'{epoch:03d}.pt']
-            for checkpoint_path in checkpoint_paths:
-                dist.save_on_master(self.state_dict(epoch), checkpoint_path)

@@ -3,6 +3,7 @@ name: rt-detr-poles
 checkpoint:
   resume: false
   run_id: null
+  epoch: null
 
 data:
   downsampling_factor: 16

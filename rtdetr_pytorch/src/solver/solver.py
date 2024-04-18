@@ -16,10 +16,20 @@ from src.misc import dist
 from src.core import BaseConfig
 
 
+CHECKPOINTS_FOLDER = Path("/scratch/cvlab/home/gwizdala/output/checkpoints/")
+
+
 class BaseSolver(object):
     def __init__(self, cfg: BaseConfig, cfg_powerlines: DictConfig) -> None:
         self.cfg = cfg
         self.cfg_powerlines = cfg_powerlines
+
+        # Set resumption checkpoint path
+        checkpoint_config = cfg_powerlines.checkpoint
+        if checkpoint_config.resume:
+            assert checkpoint_config.epoch is not None, "Checkpoint epoch not set"
+            filename = self._filename(checkpoint_config.epoch)
+            self.cfg.resume = str(CHECKPOINTS_FOLDER / str(cfg_powerlines.checkpoint.run_id) / filename)
 
         self.run = create_neptune_run(
             name=cfg_powerlines.name,
@@ -27,6 +37,9 @@ class BaseSolver(object):
             from_run_id=cfg_powerlines.checkpoint.run_id
         )
         self.run["config"] = stringify_unsupported(self.cfg_powerlines)
+
+        self.output_dir = CHECKPOINTS_FOLDER / str(run_id(self.run))
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def setup(self):
         '''Avoid instantiating unnecessary classes 
@@ -46,10 +59,7 @@ class BaseSolver(object):
             self.load_tuning_state(self.cfg.tuning)
 
         self.scaler = cfg.scaler
-        self.ema = cfg.ema.to(device) if cfg.ema is not None else None 
-
-        self.output_dir = Path(f"/scratch/cvlab/home/gwizdala/output/checkpoints/{run_id(self.run)}")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.ema = cfg.ema.to(device) if cfg.ema is not None else None
 
     def train(self):
         self.setup()
@@ -91,6 +101,14 @@ class BaseSolver(object):
             print(f'resume from {self.cfg.resume}')
             self.resume(self.cfg.resume)
 
+    def _filename(self, epoch: int) -> str:
+        return f"{epoch:03d}.pt"
+
+    def save_checkpoint(self, epoch: int):
+        if self.output_dir:
+            checkpoint_paths = [self.output_dir / self._filename(epoch)]
+            for checkpoint_path in checkpoint_paths:
+                dist.save_on_master(self.state_dict(epoch), checkpoint_path)
 
     def state_dict(self, last_epoch):
         '''state dict
