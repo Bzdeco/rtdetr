@@ -1,7 +1,4 @@
-# num_classes: 91
-# remap_mscoco_category: True
-
-train_dataloader: 
+train_dataloader:
   dataset: 
     return_masks: False
     transforms:
@@ -19,7 +16,7 @@ train_dataloader:
         - {type: SanitizeBoundingBoxes, min_size: 1}
         - {type: ConvertBox, out_fmt: 'cxcywh', normalize: True}
   shuffle: True
-  batch_size: 4
+  batch_size: 16
   num_workers: 4
   collate_fn: default_collate_fn
 

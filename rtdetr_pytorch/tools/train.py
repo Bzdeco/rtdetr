@@ -50,7 +50,7 @@ def main(args) -> None:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', '-c', type=str, default="configs/rtdetr/rtdetr_r18vd_6x_coco.yml")
-    parser.add_argument('--tuning', '-t', type=str, default="checkpoints/rtdetr_r18vd_dec3_6x_coco_from_paddle.pth")
+    parser.add_argument('--tuning', '-t', type=str, default="checkpoints/rtdetr_r18vd_5x_coco_objects365_from_paddle.pth")
     parser.add_argument('--resume', '-r', type=str)
     parser.add_argument('--test-only', action='store_true', default=False)
     parser.add_argument('--amp', action='store_true', default=True)
