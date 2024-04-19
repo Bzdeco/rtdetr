@@ -52,7 +52,9 @@ class DetSolver(BaseSolver):
                 max_norm=args.clip_max_norm,
                 ema=self.ema,
                 scaler=self.scaler)
-            self.lr_scheduler.step()
+
+            if self.cfg_powerlines.optimizer.use_lr_scheduler:
+                self.lr_scheduler.step()
 
             # Train metrics and checkpoint
             log_stats(self.run, "train", train_stats)

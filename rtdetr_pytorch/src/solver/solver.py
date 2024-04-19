@@ -77,14 +77,14 @@ class BaseSolver(object):
             batch_size=self.cfg_powerlines.data.batch_size,
             drop_last=True,
             shuffle=True,
-            num_workers=self.cfg.num_workers
+            num_workers=self.cfg_powerlines.data.num_workers.train
         )
         self.val_dataloader = factory.dataloader(
             factory.val_dataset(self.cfg_powerlines),
             batch_size=1,  # fix to 1 full resolution image which gets sliced
             drop_last=False,
             shuffle=True,
-            num_workers=self.cfg.num_workers
+            num_workers=self.cfg_powerlines.data.num_workers.val
         )
 
     def eval(self):
@@ -94,8 +94,7 @@ class BaseSolver(object):
             batch_size=1,  # fix to 1 full resolution image which gets sliced
             drop_last=False,
             shuffle=True,
-            num_workers=self.cfg.val_dataloader.num_workers,
-            collate_fn=self.cfg.val_dataloader.collate_fn
+            num_workers=self.cfg_powerlines.data.num_workers.val
         )
 
         if self.cfg.resume:
