@@ -127,7 +127,7 @@ def evaluate(
         )
 
         patch_predictions = []
-        with torch.autocast(device_type=str(device)):
+        with torch.autocast(device_type=str(device), dtype=torch.float16, enabled=True, cache_enabled=True):
             for batch in batch_multiscale_patches(
                 multiscale_patches, batch_size=sahi_config.batch_size, preprocess=preprocess
             ):

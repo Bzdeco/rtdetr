@@ -1,11 +1,18 @@
 name: rt-detr-poles
 
+epochs: 30
+optimized_metric: metrics/val/ccq/masked/quality/0.004
+
 checkpoint:
   resume: false
   run_id: null
   epoch: null
 
 data:
+  augmentations:
+    cj_magnitude: 0.2
+    multi_scale_prob: 0.5
+
   downsampling_factor: 16
   patch_size: 1024
   perturbation: 384
@@ -25,7 +32,24 @@ data:
     val: 2
 
 optimizer:
-  use_lr_scheduler: false
+  lr: 0.0001
+  lr_backbone: 0.00001
+  betas: [0.9, 0.999]
+  wd: 0.0001
+  params:
+    - params: '^(?=.*backbone)(?=.*norm).*$'
+      lr: ${optimizer.lr_backbone}
+      weight_decay: 0.
+    - params: '^(?=.*backbone)(?!.*norm).*$'
+      lr: ${optimizer.lr_backbone}
+    - params: '^(?=.*(?:encoder|decoder))(?=.*(?:norm|bias)).*$'
+      weight_decay: 0.
+
+lr_scheduler:
+  enabled: false
+  type: MultiStepLR
+  milestones: [1000]
+  gamma: 0.1
 
 paths:
   complete_frames: /scratch/cvlab/home/gwizdala/dataset/processed/daedalean/complete_frames
@@ -40,6 +64,10 @@ sahi:
   predict_on_full_image: true
   batch_size: 8
   min_score: 0.5
+
+validation:
+  every: false
+  last: true
 
 verbose: false
 

@@ -1,7 +1,7 @@
 '''
 by lyuwenyu
 '''
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import neptune
 
@@ -28,16 +28,16 @@ def log_stats(run: neptune.Run, subset: str, stats: Dict[str, Any]):
 
 
 class DetSolver(BaseSolver):
-    def fit(self):
+    def fit(self) -> Optional[float]:
         print("Start training")
         self.train()
 
-        args = self.cfg 
-        
+        args = self.cfg
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        n_epochs = self.cfg_powerlines.epochs
         print('number of params:', n_parameters)
 
-        for epoch in range(self.last_epoch + 1, args.epochs):
+        for epoch in range(self.last_epoch + 1, n_epochs):
             if dist.is_dist_available_and_initialized():
                 self.train_dataloader.sampler.set_epoch(epoch)
 
@@ -53,15 +53,29 @@ class DetSolver(BaseSolver):
                 ema=self.ema,
                 scaler=self.scaler)
 
-            if self.cfg_powerlines.optimizer.use_lr_scheduler:
+            if self.cfg_powerlines.lr_scheduler.enabled:
                 self.lr_scheduler.step()
 
-            # Train metrics and checkpoint
+            # Log train metrics and checkpoint
             log_stats(self.run, "train", train_stats)
             self.save_checkpoint(epoch)
 
             # Validate
             model = self.ema.module if self.ema else self.model
+            if self.cfg_powerlines.validation.every:
+                val_stats = evaluate(
+                    epoch,
+                    self.cfg_powerlines,
+                    model,
+                    self.criterion,
+                    self.postprocessor,
+                    self.val_dataloader,
+                    self.device,
+                    self.run
+                )
+                log_stats(self.run, "val", val_stats)
+
+        if self.cfg_powerlines.validation.last:
             val_stats = evaluate(
                 epoch,
                 self.cfg_powerlines,
@@ -72,9 +86,10 @@ class DetSolver(BaseSolver):
                 self.device,
                 self.run
             )
-
-            # Validation metrics
             log_stats(self.run, "val", val_stats)
+            return val_stats[self.cfg_powerlines.optimized_metric]
+        else:
+            return None
 
     def val(self):
         self.eval()

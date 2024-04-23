@@ -64,8 +64,8 @@ class BaseSolver(object):
 
     def train(self):
         self.setup()
-        self.optimizer = self.cfg.optimizer
-        self.lr_scheduler = self.cfg.lr_scheduler
+        self.optimizer = factory.optimizer(self.cfg_powerlines)
+        self.lr_scheduler = factory.lr_scheduler(self.cfg_powerlines, self.optimizer)
 
         # NOTE instantiating order
         if self.cfg.resume:

@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 
 import numpy as np
 import torch
+from omegaconf import DictConfig
 from torch.utils.data import Dataset
 from torchvision import tv_tensors
 
@@ -17,6 +18,7 @@ from powerlines.utils import parallelize
 class TrainPolesDetectionDataset(Dataset):
     def __init__(
         self,
+        config: DictConfig,
         data_source: DataSourceConfig,
         loading: LoadingConfig,
         sampling: SamplingConfig,
@@ -34,7 +36,7 @@ class TrainPolesDetectionDataset(Dataset):
         self.num_frames = num_frames if num_frames is not None else len(self.filepaths)
 
         if self.with_augmentations:
-            self.augmentations = train_augmentations()
+            self.augmentations = train_augmentations(config)
         else:
             self.augmentations = evaluation_augmentations()
 

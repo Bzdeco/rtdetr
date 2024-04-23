@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Tuple, Any, Union
 import numpy as np
 import torch
 import torchvision.transforms.v2 as transforms
+from omegaconf import DictConfig
 from torchvision import tv_tensors
 from torchvision.transforms import InterpolationMode
 
@@ -238,13 +239,23 @@ ORIG_SIZE = torch.as_tensor(DETECTOR_INPUT_SIZE)
 MIN_BBOX_SIZE = 1  # min pole width across DDLN dataset = 0.5
 
 
-def train_augmentations():
-    # Augmentations from RT-DETR, without ZoomOut, with adjusted min_scale and min_size, and with fixed aspect ratio
+def train_augmentations(config: DictConfig):
+    # Augmentations from RT-DETR, without ZoomOut, with adjusted min_scale, min_size, aspect ratio and num trials
+    cj_magnitude = config.data.augmentations.cj_magnitude
+    multi_scale_prob = config.data.augmentations.multi_scale_prob
+
     return transforms.Compose([
         transforms.RandomPhotometricDistort(
-            brightness=(0.875, 1.125), contrast=(0.5, 1.5), hue=(-0.05, 0.05), saturation=(0.5, 1.5), p=0.5
+            brightness=(1 - cj_magnitude, 1 + cj_magnitude),
+            contrast=(1 - cj_magnitude, 1 + cj_magnitude),
+            hue=(-cj_magnitude, cj_magnitude),
+            saturation=(1 - cj_magnitude, 1 + cj_magnitude),
+            p=0.5
         ),
-        RandomIoUCrop(min_scale=1/8, max_scale=1, min_aspect_ratio=1, max_aspect_ratio=1, trials=40, p=0.8),
+        transforms.RandomZoomOut(fill=0, p=multi_scale_prob),
+        RandomIoUCrop(
+            min_scale=1/8, max_scale=1, min_aspect_ratio=0.75, max_aspect_ratio=1.25, trials=200, p=multi_scale_prob
+        ),
         transforms.SanitizeBoundingBoxes(MIN_BBOX_SIZE),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.Resize(size=DETECTOR_INPUT_SIZE, interpolation=InterpolationMode.BILINEAR),
