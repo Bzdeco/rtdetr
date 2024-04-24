@@ -24,16 +24,13 @@ class InferencePolesDetectionDataset(Dataset):
         self.sampling = sampling
 
         self.filepaths = load_filtered_filepaths(data_source)
+        self.timestamps = list(map(lambda path: int(path.stem), self.filepaths))
         self.annotations = load_annotations(data_source)
         self.num_frames = num_frames if num_frames is not None else len(self.filepaths)
 
-        self.cache = [{
-            "timestamp": annotation.frame_timestamp(),
-            "annotation": annotation
-        } for annotation in self.annotations.values()]
-
     def __getitem__(self, frame_id: int):
-        frame = load_complete_frame(self.data_source, self.loading, self.cache[frame_id])
+        annotation = self.annotations[self.timestamps[frame_id]]
+        frame = load_complete_frame(annotation, self.data_source, self.sampling, self.loading)
         annotation = frame["annotation"]
 
         input = tv_tensors.Image(torch.from_numpy(frame["image"]))

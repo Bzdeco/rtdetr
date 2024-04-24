@@ -42,8 +42,7 @@ def train_one_epoch(config: DictConfig, model: torch.nn.Module, criterion: torch
         if scaler is not None:
             with torch.autocast(device_type=str(device), cache_enabled=True):
                 outputs = model(samples, targets)
-
-            with torch.autocast(device_type=str(device), enabled=False):
+                # with torch.autocast(device_type=str(device), enabled=False):
                 loss_dict = criterion(outputs, targets)
 
             loss = sum(loss_dict.values())

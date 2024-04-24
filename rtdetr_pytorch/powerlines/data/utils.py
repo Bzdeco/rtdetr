@@ -182,11 +182,15 @@ def load_parameters_for_sampling(loaded_frame_data: Dict[str, Any]) -> Dict[str,
     loading: LoadingConfig = loaded_frame_data["loading"]
     timestamp = loaded_frame_data["timestamp"]
     annotation = loaded_frame_data["annotation"]
-    perturbation_size = sampling.perturbation_size
-    patch_size = sampling.patch_size
-    remove_excluded_area = sampling.remove_excluded_area
     distance_masks = load_distance_masks(data_source, loading, timestamp)
+    return frame_parameters(annotation, sampling, distance_masks)
 
+
+def frame_parameters(
+    annotation: ImageAnnotations,
+    sampling: SamplingConfig,
+    distance_masks: Dict[str, Any]
+):
     # Sample relative to poles
     sampling_source_distance_mask = distance_masks["poles_distance_mask"]
     num_positive_samples = num_pole_samples_in_frame(annotation)
@@ -194,19 +198,19 @@ def load_parameters_for_sampling(loaded_frame_data: Dict[str, Any]) -> Dict[str,
     positive_patch_centers_data = positive_sampled_patch_centers_data(
         annotation,
         sampling_source_distance_mask,
-        perturbation_size,
-        patch_size,
-        remove_excluded_area
+        sampling.perturbation_size,
+        sampling.patch_size,
+        sampling.remove_excluded_area
     )
     negative_patch_centers_data = negative_sampled_patch_centers_data(
         annotation,
         sampling_source_distance_mask,
-        patch_size,
-        remove_excluded_area
+        sampling.patch_size,
+        sampling.remove_excluded_area
     )
 
     return {
-        "timestamp": timestamp,
+        "timestamp": annotation.frame_timestamp(),
         "annotation": annotation,
         "positive_sampling_centers_data": positive_patch_centers_data,
         "negative_sampling_centers_data": negative_patch_centers_data,
@@ -217,11 +221,12 @@ def load_parameters_for_sampling(loaded_frame_data: Dict[str, Any]) -> Dict[str,
 
 
 def load_complete_frame(
+    annotation: ImageAnnotations,
     data_source: DataSourceConfig,
-    loading: LoadingConfig,
-    loaded_frame_data: Dict[str, Any]
+    sampling: SamplingConfig,
+    loading: LoadingConfig
 ) -> Dict[str, Any]:
-    timestamp = loaded_frame_data["timestamp"]
+    timestamp = annotation.frame_timestamp()
     frame_image = load_npy(data_source.input_filepath(timestamp))
     distance_masks = load_distance_masks(data_source, loading, timestamp)
 
@@ -230,7 +235,7 @@ def load_complete_frame(
         "image": frame_image,
         "poles_distance_mask": distance_masks["poles_distance_mask"],
         "exclusion_zones_distance_mask": distance_masks["exclusion_zones_distance_mask"],
-        **loaded_frame_data
+        **frame_parameters(annotation, sampling, distance_masks)
     }
 
 
