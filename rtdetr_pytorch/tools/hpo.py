@@ -144,7 +144,7 @@ def run_hyper_parameter_search(
         n_workers=n_workers
     )
     initial_design = MultiFidelityFacade.get_initial_design(scenario, n_configs=n_initial_designs)
-    intensifier = Hyperband(scenario, eta=2, incumbent_selection="highest_budget")  # TODO: eta
+    intensifier = Hyperband(scenario, eta=2, incumbent_selection="highest_budget")
 
     smac = MultiFidelityFacade(
         scenario=scenario,
@@ -164,8 +164,8 @@ if __name__ == '__main__':
     parser.add_argument("--metric", default="metrics/val/ccq/masked/quality/0.004")
     parser.add_argument("--n_trials", default=500)
     parser.add_argument("--n_workers", default=1)
-    parser.add_argument("--min_epochs", default=2)  # TODO: min max epochs
-    parser.add_argument("--max_epochs", default=10)
+    parser.add_argument("--min_epochs", default=2)
+    parser.add_argument("--max_epochs", default=5)
     parser.add_argument("--n_initial_designs", default=5)
     parser.add_argument("--resume", default=False, action="store_true")
     args = parser.parse_args()
