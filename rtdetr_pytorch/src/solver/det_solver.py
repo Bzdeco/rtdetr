@@ -11,20 +11,28 @@ from .solver import BaseSolver
 from .det_engine import train_one_epoch, evaluate
 
 
-def log_stats(run: neptune.Run, subset: str, stats: Dict[str, Any]):
+def format_stats_as_flat_metrics_dict(subset: str, stats: Dict[str, Any]) -> Dict[str, Any]:
+    metrics = {}
     for name, value in stats.items():
         if name.startswith("loss"):
             if name == "loss":
-                run[f"metrics/{subset}/loss/total"].log(value)
+                metrics[f"metrics/{subset}/loss/total"] = value
             else:
                 loss_component_name = name[name.find("_") + 1:]
-                run[f"metrics/{subset}/loss/{loss_component_name}"].log(value)
+                metrics[f"metrics/{subset}/loss/{loss_component_name}"] = value
         elif name.startswith("metrics"):
             formatted_name = name[8:]  # without "metrics/" part
-            for entity, metric in value.items():
-                run[f"metrics/{subset}/{formatted_name}/{entity}"].log(metric)
+            for entity, metric_value in value.items():
+                metrics[f"metrics/{subset}/{formatted_name}/{entity}"] = metric_value
         else:
-            run[f"metrics/{subset}/misc/{name}"].log(value)
+            metrics[f"metrics/{subset}/misc/{name}"] = value
+
+    return metrics
+
+
+def log_metrics(run: neptune.Run, metrics: Dict[str, Any]):
+    for metric, value in metrics.items():
+        run[metric].log(value)
 
 
 class DetSolver(BaseSolver):
@@ -57,7 +65,8 @@ class DetSolver(BaseSolver):
                 self.lr_scheduler.step()
 
             # Log train metrics and checkpoint
-            log_stats(self.run, "train", train_stats)
+            train_metrics = format_stats_as_flat_metrics_dict("train", train_stats)
+            log_metrics(self.run, train_metrics)
             self.save_checkpoint(epoch)
 
             # Validate
@@ -73,7 +82,8 @@ class DetSolver(BaseSolver):
                     self.device,
                     self.run
                 )
-                log_stats(self.run, "val", val_stats)
+                val_metrics = format_stats_as_flat_metrics_dict("val", val_stats)
+                log_metrics(self.run, val_metrics)
 
         if self.cfg_powerlines.validation.last:
             val_stats = evaluate(
@@ -86,8 +96,9 @@ class DetSolver(BaseSolver):
                 self.device,
                 self.run
             )
-            log_stats(self.run, "val", val_stats)
-            return val_stats[self.cfg_powerlines.optimized_metric]
+            val_metrics = format_stats_as_flat_metrics_dict("val", val_stats)
+            log_metrics(self.run, val_metrics)
+            return val_metrics[self.cfg_powerlines.optimized_metric]
         else:
             return None
 
@@ -98,4 +109,5 @@ class DetSolver(BaseSolver):
         val_stats = evaluate(
             0, self.cfg_powerlines, model, self.criterion, self.postprocessor, self.val_dataloader, self.device, self.run
         )
-        log_stats(self.run, "val", val_stats)
+        val_metrics = format_stats_as_flat_metrics_dict("val", val_stats)
+        log_metrics(self.run, val_metrics)

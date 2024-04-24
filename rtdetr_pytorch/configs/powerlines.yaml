@@ -1,7 +1,7 @@
 name: rt-detr-poles
 
 epochs: 30
-optimized_metric: metrics/val/ccq/masked/quality/0.004
+optimized_metric: null  # set by the HPO script
 
 checkpoint:
   resume: false

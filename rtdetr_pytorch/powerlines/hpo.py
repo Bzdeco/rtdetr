@@ -50,28 +50,24 @@ class HyperparameterOptimizationCallback(Callback):
         self._current_config_dict = None
 
     def on_ask_end(self, smbo: SMBO, info: TrialInfo) -> None:
-        # trial_config = dict(info.config)
-        # epochs = int(info.budget)
-        # print(f"Trial with epochs={epochs} config={trial_config}")
         pass
 
     def on_tell_end(self, smbo: SMBO, info: TrialInfo, value: TrialValue):
         self._current_trial += 1
 
-        # Check for forbidden configuration trial results
+        # Log trial configuration
         trial_result = 1 - value.cost
-        if trial_result != 0:  # do not log forbidden configuration trials
-            # Log trial configuration
-            trial_config = dict(info.config)
-            epochs = int(info.budget)
-            self._run[f"trials/{self._current_trial}"] = stringify_unsupported(trial_config)
-            self._run[f"trials/{self._current_trial}/epochs"] = epochs
+        trial_config = dict(info.config)
+        epochs = int(info.budget)
+        self._run[f"trials/{self._current_trial}"] = stringify_unsupported(trial_config)
+        self._run[f"trials/{self._current_trial}/epochs"] = epochs
 
-            # Log trial results
-            self._run[f"trials/{self._current_trial}/result"] = trial_result
-            self._run[f"results"].log(trial_result)
+        # Log trial results
+        self._run[f"trials/{self._current_trial}/result"] = trial_result
+        self._run[f"results"].log(trial_result)
+        self._run.sync()
 
-            # Update incumbent trial
-            incumbent = smbo.intensifier.get_incumbent()
-            if incumbent is not None and dict(incumbent) == trial_config:
-                self._run["incumbent_trial"] = self._current_trial
+        # Update incumbent trial
+        incumbent = smbo.intensifier.get_incumbent()
+        if incumbent is not None and dict(incumbent) == trial_config:
+            self._run["incumbent_trial"] = self._current_trial

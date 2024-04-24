@@ -112,7 +112,6 @@ class YAMLConfig(BaseConfig):
             self._scaler = create('scaler')
 
         return self._scaler
-
  
     @staticmethod
     def get_optim_params(cfg: dict, model: nn.Module):

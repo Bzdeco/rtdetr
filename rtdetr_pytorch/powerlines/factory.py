@@ -1,7 +1,10 @@
+import re
 from pathlib import Path
+from typing import List, Dict, Any
 
 import torch.optim
 from omegaconf import DictConfig
+from torch import nn
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
 
@@ -80,14 +83,47 @@ def dataloader(
     )
 
 
-def optimizer(config: DictConfig) -> torch.optim.Optimizer:
+def optimizer(config: DictConfig, model: nn.Module) -> torch.optim.Optimizer:
     optimizer_config = config.optimizer
+
+    params_config = list(map(lambda param_group_config: dict(param_group_config), optimizer_config.params))
     return torch.optim.AdamW(
-        params=optimizer_config.params,
+        params=get_optimizer_parameter_groups(params_config, model),
         lr=optimizer_config.lr,
-        betas=optimizer_config.betas,
+        betas=tuple(optimizer_config.betas),
         weight_decay=optimizer_config.wd
     )
+
+
+def get_optimizer_parameter_groups(params_config_list: List[Dict[str, Any]], model: nn.Module) -> List[Dict[str, Any]]:
+    """
+    Adapted from `YAMLConfig.get_optim_params`.
+
+    E.g.:
+        ^(?=.*a)(?=.*b).*$         means including a and b
+        ^((?!b.)*a((?!b).)*$       means including a but not b
+        ^((?!b|c).)*a((?!b|c).)*$  means including a but not (b | c)
+    """
+
+    param_groups = []
+    visited = []
+    for pg in params_config_list:
+        pattern = pg["params"]
+        params = {k: v for k, v in model.named_parameters() if v.requires_grad and len(re.findall(pattern, k)) > 0}
+        pg["params"] = list(params.values())
+        param_groups.append(pg)
+        visited.extend(list(params.keys()))
+
+    names = [k for k, v in model.named_parameters() if v.requires_grad]
+
+    if len(visited) < len(names):
+        unseen = set(names) - set(visited)
+        params = {k: v for k, v in model.named_parameters() if v.requires_grad and k in unseen}
+        param_groups.append({"params": list(params.values())})
+        visited.extend(list(params.keys()))
+
+    assert len(visited) == len(names), "Haven't visited all named parameters"
+    return param_groups
 
 
 def lr_scheduler(config: DictConfig, opt: torch.optim.Optimizer) -> torch.optim.lr_scheduler.LRScheduler:

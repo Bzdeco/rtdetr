@@ -17,13 +17,15 @@ from smac import Scenario, MultiFidelityFacade
 from smac.intensifier import Hyperband
 
 
+PATCH_SIZE = 1024
+
+
 def _values_range(base: float, spread: float) -> List[float]:
     return [base - spread, base + spread]
 
 
 def perturbation_from_hyperparameters(hyperparameters: Union[Configuration, Dict[str, Any]]) -> int:
-    patch_size = hyperparameters["patch_size"]
-    return int(hyperparameters["perturbation_fraction"] * patch_size)
+    return int(hyperparameters["perturbation_fraction"] * PATCH_SIZE)
 
 
 def overrides_from_trial_config(hpo_run_id: int, trial_id: int) -> List[str]:
@@ -107,12 +109,12 @@ class HPORunner:
         torch.cuda.empty_cache()
         hydra_config = self.hydra_config_from_hpc(config, epochs=int(budget))
 
-        optimized_metric = run_training(hydra_config)
+        optimized_metric_value = run_training(hydra_config)
 
         if self._goal == "maximize":
-            return 1 - optimized_metric  # SMAC minimizes the target function
+            return 1 - optimized_metric_value  # SMAC minimizes the target function
         else:
-            return optimized_metric
+            return optimized_metric_value
 
 
 def run_hyper_parameter_search(
@@ -159,7 +161,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", required=True)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--metric", default="quality")
+    parser.add_argument("--metric", default="metrics/val/ccq/masked/quality/0.004")
     parser.add_argument("--n_trials", default=500)
     parser.add_argument("--n_workers", default=1)
     parser.add_argument("--min_epochs", default=2)  # TODO: min max epochs
