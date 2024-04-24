@@ -165,7 +165,7 @@ if __name__ == '__main__':
     parser.add_argument("--n_trials", default=500)
     parser.add_argument("--n_workers", default=1)
     parser.add_argument("--min_epochs", default=2)
-    parser.add_argument("--max_epochs", default=5)
+    parser.add_argument("--max_epochs", default=10)
     parser.add_argument("--n_initial_designs", default=5)
     parser.add_argument("--resume", default=False, action="store_true")
     args = parser.parse_args()
