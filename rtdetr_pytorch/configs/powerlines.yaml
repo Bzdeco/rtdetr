@@ -67,8 +67,8 @@ sahi:
   min_score: 0.5
 
 validation:
-  every: false
-  last: true
+  every: true
+  last: false
 
 visualization:
   n_images_per_epoch: 5

@@ -4,6 +4,7 @@ by lyuwenyu
 from typing import Any, Dict, Optional
 
 import neptune
+import numpy as np
 
 from src.misc import dist
 
@@ -45,6 +46,7 @@ class DetSolver(BaseSolver):
         n_epochs = self.cfg_powerlines.epochs
         print('number of params:', n_parameters)
 
+        best_metric_value = -np.inf
         for epoch in range(self.last_epoch + 1, n_epochs):
             if dist.is_dist_available_and_initialized():
                 self.train_dataloader.sampler.set_epoch(epoch)
@@ -84,6 +86,7 @@ class DetSolver(BaseSolver):
                 )
                 val_metrics = format_stats_as_flat_metrics_dict("val", val_stats)
                 log_metrics(self.run, val_metrics)
+                best_metric_value = max(best_metric_value, val_metrics[self.cfg_powerlines.optimized_metric])
 
         if self.cfg_powerlines.validation.last:
             val_stats = evaluate(
@@ -100,7 +103,7 @@ class DetSolver(BaseSolver):
             log_metrics(self.run, val_metrics)
             return val_metrics[self.cfg_powerlines.optimized_metric]
         else:
-            return None
+            return best_metric_value
 
     def val(self):
         self.eval()
