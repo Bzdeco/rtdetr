@@ -76,7 +76,7 @@ class HPORunner:
         config_space = ConfigurationSpace()
 
         config_space.add_hyperparameters([
-            Float("cj_magnitude", (0.0, 0.5), default=0.2),
+            Float("cj_magnitude", (0.0, 0.3), default=0.2),
             Float("multi_scale_prob", (0.0, 0.8), default=0.5),
             Float("perturbation_fraction", (0.0, 0.875), default=0.375),
             Float("negative_sample_prob", (0.0, 0.35), default=0.12),
