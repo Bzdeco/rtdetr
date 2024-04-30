@@ -2,6 +2,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 https://github.com/facebookresearch/detr/blob/main/util/box_ops.py
 '''
+from typing import Tuple
 
 import torch
 from torchvision.ops.boxes import box_area
@@ -9,12 +10,7 @@ from torchvision.ops.boxes import box_area
 
 def box_cxcywh_to_xyxy(x):
     x_c, y_c, w, h = x.unbind(-1)
-    b = [
-        torch.maximum(x_c - 0.5 * w, torch.tensor(0)),
-        torch.maximum(y_c - 0.5 * h, torch.tensor(0)),
-        torch.minimum(x_c + 0.5 * w, torch.tensor(1)),
-        torch.minimum(y_c + 0.5 * h, torch.tensor(1))
-    ]
+    b = [(x_c - 0.5 * w), (y_c - 0.5 * h), (x_c + 0.5 * w), (y_c + 0.5 * h)]
     return torch.stack(b, dim=-1)
 
 
@@ -41,6 +37,12 @@ def box_iou(boxes1, boxes2):
     return iou, union
 
 
+def sanitize_boxes(boxes1: torch.Tensor, boxes2: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    boxes1[:, 2:] = torch.maximum(boxes1[:, :2], boxes1[:, 2:])
+    boxes2[:, 2:] = torch.maximum(boxes2[:, :2], boxes2[:, 2:])
+    return boxes1, boxes2
+
+
 def generalized_box_iou(boxes1, boxes2):
     """
     Generalized IoU from https://giou.stanford.edu/
@@ -52,8 +54,7 @@ def generalized_box_iou(boxes1, boxes2):
     """
     # degenerate boxes gives inf / nan results
     # so do an early check
-    assert (boxes1[:, 2:] >= boxes1[:, :2]).all()
-    assert (boxes2[:, 2:] >= boxes2[:, :2]).all()
+    boxes1, boxes2 = sanitize_boxes(boxes1, boxes2)
     iou, union = box_iou(boxes1, boxes2)
 
     lt = torch.min(boxes1[:, None, :2], boxes2[:, :2])
