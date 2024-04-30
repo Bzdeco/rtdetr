@@ -38,9 +38,10 @@ def box_iou(boxes1, boxes2):
 
 
 def sanitize_boxes(boxes1: torch.Tensor, boxes2: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-    boxes1[:, 2:] = torch.maximum(boxes1[:, :2], boxes1[:, 2:])
-    boxes2[:, 2:] = torch.maximum(boxes2[:, :2], boxes2[:, 2:])
-    return boxes1, boxes2
+    boxes1_sanitized, boxes2_sanitized = boxes1.clone(), boxes2.clone()
+    boxes1_sanitized[:, 2:] = torch.maximum(boxes1[:, :2], boxes1[:, 2:])
+    boxes2_sanitized[:, 2:] = torch.maximum(boxes2[:, :2], boxes2[:, 2:])
+    return boxes1_sanitized, boxes2_sanitized
 
 
 def generalized_box_iou(boxes1, boxes2):

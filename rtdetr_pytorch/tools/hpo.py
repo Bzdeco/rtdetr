@@ -80,7 +80,7 @@ class HPORunner:
             Float("multi_scale_prob", (0.0, 0.8), default=0.5),
             Float("perturbation_fraction", (0.0, 0.875), default=0.375),
             Float("negative_sample_prob", (0.0, 0.35), default=0.12),
-            Integer("batch_size", (2, 32), default=16, log=True),
+            Integer("batch_size", (2, 16), default=16, log=True),
             Float("lr", (1e-5, 1e-2), default=1e-4, log=True),
             Float("lr_backbone", (1e-6, 1e-3), default=1e-5, log=True),
             Float("wd", (1e-6, 1e-1), default=1e-4, log=True),
