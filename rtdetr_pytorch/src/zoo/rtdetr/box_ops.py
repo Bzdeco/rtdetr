@@ -9,15 +9,18 @@ from torchvision.ops.boxes import box_area
 
 def box_cxcywh_to_xyxy(x):
     x_c, y_c, w, h = x.unbind(-1)
-    b = [(x_c - 0.5 * w), (y_c - 0.5 * h),
-         (x_c + 0.5 * w), (y_c + 0.5 * h)]
+    b = [
+        torch.maximum(x_c - 0.5 * w, torch.tensor(0)),
+        torch.maximum(y_c - 0.5 * h, torch.tensor(0)),
+        torch.minimum(x_c + 0.5 * w, torch.tensor(1)),
+        torch.minimum(y_c + 0.5 * h, torch.tensor(1))
+    ]
     return torch.stack(b, dim=-1)
 
 
 def box_xyxy_to_cxcywh(x):
     x0, y0, x1, y1 = x.unbind(-1)
-    b = [(x0 + x1) / 2, (y0 + y1) / 2,
-         (x1 - x0), (y1 - y0)]
+    b = [(x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0), (y1 - y0)]
     return torch.stack(b, dim=-1)
 
 
