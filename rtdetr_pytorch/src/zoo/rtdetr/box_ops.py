@@ -37,13 +37,6 @@ def box_iou(boxes1, boxes2):
     return iou, union
 
 
-def sanitize_boxes(boxes1: torch.Tensor, boxes2: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-    boxes1_sanitized, boxes2_sanitized = boxes1.clone(), boxes2.clone()
-    boxes1_sanitized[:, 2:] = torch.maximum(boxes1[:, :2], boxes1[:, 2:])
-    boxes2_sanitized[:, 2:] = torch.maximum(boxes2[:, :2], boxes2[:, 2:])
-    return boxes1_sanitized, boxes2_sanitized
-
-
 def generalized_box_iou(boxes1, boxes2):
     """
     Generalized IoU from https://giou.stanford.edu/
@@ -53,9 +46,7 @@ def generalized_box_iou(boxes1, boxes2):
     Returns a [N, M] pairwise matrix, where N = len(boxes1)
     and M = len(boxes2)
     """
-    # degenerate boxes gives inf / nan results
-    # so do an early check
-    boxes1, boxes2 = sanitize_boxes(boxes1, boxes2)
+    # degenerate boxes gives inf / nan results, they should have been filtered out before this function call
     iou, union = box_iou(boxes1, boxes2)
 
     lt = torch.min(boxes1[:, None, :2], boxes2[:, :2])

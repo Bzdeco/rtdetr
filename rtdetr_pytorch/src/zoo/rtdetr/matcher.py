@@ -4,7 +4,6 @@ Modules to compute the matching cost and solve the corresponding LSAP.
 
 by lyuwenyu
 """
-
 import torch
 import torch.nn.functional as F 
 
@@ -14,6 +13,9 @@ from torch import nn
 from .box_ops import box_cxcywh_to_xyxy, generalized_box_iou
 
 from src.core import register
+
+
+MAX_COST = torch.inf
 
 
 @register
@@ -74,8 +76,12 @@ class HungarianMatcher(nn.Module):
             out_prob = F.sigmoid(outputs["pred_logits"].flatten(0, 1))
         else:
             out_prob = outputs["pred_logits"].flatten(0, 1).softmax(-1)  # [batch_size * num_queries, num_classes]
-
         out_bbox = outputs["pred_boxes"].flatten(0, 1)  # [batch_size * num_queries, 4]
+
+        # Filter out non-degenerate boxes
+        non_degenerate_mask = non_degenerate_bboxes_mask(box_cxcywh_to_xyxy(out_bbox))
+        out_bbox_valid = out_bbox[non_degenerate_mask]
+        out_prob_valid = out_prob[non_degenerate_mask]
 
         # Also concat the target labels and boxes
         tgt_ids = torch.cat([v["labels"] for v in targets])
@@ -85,18 +91,29 @@ class HungarianMatcher(nn.Module):
         # but approximate it in 1 - proba[target class].
         # The 1 is a constant that doesn't change the matching, it can be ommitted.
         if self.use_focal_loss:
-            out_prob = out_prob[:, tgt_ids]
-            neg_cost_class = (1 - self.alpha) * (out_prob**self.gamma) * (-(1 - out_prob + 1e-8).log())
-            pos_cost_class = self.alpha * ((1 - out_prob)**self.gamma) * (-(out_prob + 1e-8).log())
-            cost_class = pos_cost_class - neg_cost_class        
+            out_prob_valid = out_prob_valid[:, tgt_ids]
+            neg_cost_class = (1 - self.alpha) * (out_prob_valid**self.gamma) * (-(1 - out_prob_valid + 1e-8).log())
+            pos_cost_class = self.alpha * ((1 - out_prob_valid)**self.gamma) * (-(out_prob_valid + 1e-8).log())
+            cost_class_valid = pos_cost_class - neg_cost_class
         else:
-            cost_class = -out_prob[:, tgt_ids]
+            cost_class_valid = -out_prob_valid[:, tgt_ids]
 
         # Compute the L1 cost between boxes
-        cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=1)
+        cost_bbox_valid = torch.cdist(out_bbox_valid, tgt_bbox, p=1)
 
         # Compute the giou cost betwen boxes
-        cost_giou = -generalized_box_iou(box_cxcywh_to_xyxy(out_bbox), box_cxcywh_to_xyxy(tgt_bbox))
+        cost_giou_valid = -generalized_box_iou(box_cxcywh_to_xyxy(out_bbox_valid), box_cxcywh_to_xyxy(tgt_bbox))
+
+        # Set costs for all bounding boxes
+        print("cost bbox", cost_bbox_valid.shape)
+        print("cost class", cost_class_valid.shape)
+        print("cost giou", cost_giou_valid.shape)
+        cost_bbox = torch.full((len(out_bbox),), fill_value=MAX_COST)
+        cost_bbox[non_degenerate_mask] = cost_bbox_valid
+        cost_class = torch.full((len(out_bbox),), fill_value=MAX_COST)
+        cost_class[non_degenerate_mask] = cost_class_valid
+        cost_giou = torch.full((len(out_bbox),), fill_value=MAX_COST)
+        cost_giou[non_degenerate_mask] = cost_giou_valid
         
         # Final cost matrix
         C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
@@ -106,3 +123,9 @@ class HungarianMatcher(nn.Module):
         indices = [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))]
 
         return [(torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64)) for i, j in indices]
+
+
+def non_degenerate_bboxes_mask(bboxes: torch.Tensor) -> torch.Tensor:
+    ordered_coordinates = torch.all(bboxes[:, :2] < bboxes[:, 2:], dim=1)
+    within_image = torch.logical_and(torch.all(bboxes >= 0.0, dim=1), torch.all(bboxes <= 1.0, dim=1))
+    return torch.logical_and(ordered_coordinates, within_image)
