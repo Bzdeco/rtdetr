@@ -111,15 +111,15 @@ class HungarianMatcher(nn.Module):
         # Issue with infinite costs: https://github.com/ultralytics/ultralytics/issues/4711#issuecomment-1705011229
         cost_shape = (n_predictions, n_targets)
 
-        cost_bbox = torch.full(cost_shape, fill_value=MAX_COST, device=cost_bbox_valid.device)
+        cost_bbox = torch.full(cost_shape, fill_value=MAX_COST, device=cost_bbox_valid.device, dtype=cost_bbox_valid.dtype)
         cost_bbox[non_degenerate_mask, :] = cost_bbox_valid
         cost_bbox[torch.logical_or(torch.isnan(cost_bbox), torch.isinf(cost_bbox))] = MAX_COST
 
-        cost_class = torch.full(cost_shape, fill_value=MAX_COST, device=cost_class_valid.device)
+        cost_class = torch.full(cost_shape, fill_value=MAX_COST, device=cost_class_valid.device, dtype=cost_class_valid.dtype)
         cost_class[non_degenerate_mask, :] = cost_class_valid
         cost_class[torch.logical_or(torch.isnan(cost_class), torch.isinf(cost_class))] = MAX_COST
 
-        cost_giou = torch.full(cost_shape, fill_value=MAX_COST, device=cost_giou_valid.device)
+        cost_giou = torch.full(cost_shape, fill_value=MAX_COST, device=cost_giou_valid.device, dtype=cost_giou_valid.dtype)
         cost_giou[non_degenerate_mask, :] = cost_giou_valid
         cost_giou[torch.logical_or(torch.isnan(cost_giou), torch.isinf(cost_giou))] = MAX_COST
 
