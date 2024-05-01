@@ -121,8 +121,7 @@ class HungarianMatcher(nn.Module):
         cost_giou = torch.full(cost_shape, fill_value=max_cost_giou, device=cost_giou_valid.device)
         cost_giou[non_degenerate_mask, :] = cost_giou_valid
         cost_giou[torch.logical_or(torch.isnan(cost_giou), torch.isinf(cost_giou))] = max_cost_giou
-        print("max costs", max_cost_bbox, max_cost_class, max_cost_giou)
-        
+
         # Final cost matrix
         C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
         C = C.view(bs, num_queries, -1).cpu()
