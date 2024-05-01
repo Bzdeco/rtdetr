@@ -77,6 +77,7 @@ class HungarianMatcher(nn.Module):
         else:
             out_prob = outputs["pred_logits"].flatten(0, 1).softmax(-1)  # [batch_size * num_queries, num_classes]
         out_bbox = outputs["pred_boxes"].flatten(0, 1)  # [batch_size * num_queries, 4]
+        n_predictions = len(out_bbox)
 
         # Filter out non-degenerate boxes
         non_degenerate_mask = non_degenerate_bboxes_mask(box_cxcywh_to_xyxy(out_bbox))
@@ -86,6 +87,7 @@ class HungarianMatcher(nn.Module):
         # Also concat the target labels and boxes
         tgt_ids = torch.cat([v["labels"] for v in targets])
         tgt_bbox = torch.cat([v["boxes"] for v in targets])
+        n_targets = len(tgt_ids)
 
         # Compute the classification cost. Contrary to the loss, we don't use the NLL,
         # but approximate it in 1 - proba[target class].
@@ -105,15 +107,13 @@ class HungarianMatcher(nn.Module):
         cost_giou_valid = -generalized_box_iou(box_cxcywh_to_xyxy(out_bbox_valid), box_cxcywh_to_xyxy(tgt_bbox))
 
         # Set costs for all bounding boxes
-        print("cost bbox", cost_bbox_valid.shape)
-        print("cost class", cost_class_valid.shape)
-        print("cost giou", cost_giou_valid.shape)
-        cost_bbox = torch.full((len(out_bbox),), fill_value=MAX_COST)
-        cost_bbox[non_degenerate_mask] = cost_bbox_valid
-        cost_class = torch.full((len(out_bbox),), fill_value=MAX_COST)
-        cost_class[non_degenerate_mask] = cost_class_valid
-        cost_giou = torch.full((len(out_bbox),), fill_value=MAX_COST)
-        cost_giou[non_degenerate_mask] = cost_giou_valid
+        cost_shape = (n_predictions, n_targets)
+        cost_bbox = torch.full(cost_shape, fill_value=MAX_COST, device=cost_bbox_valid.device)
+        cost_bbox[non_degenerate_mask, :] = cost_bbox_valid
+        cost_class = torch.full(cost_shape, fill_value=MAX_COST, device=cost_class_valid.device)
+        cost_class[non_degenerate_mask, :] = cost_class_valid
+        cost_giou = torch.full(cost_shape, fill_value=MAX_COST, device=cost_giou_valid.device)
+        cost_giou[non_degenerate_mask, :] = cost_giou_valid
         
         # Final cost matrix
         C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
