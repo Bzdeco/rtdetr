@@ -105,6 +105,7 @@ class HungarianMatcher(nn.Module):
         cost_giou_valid = -generalized_box_iou(out_bbox_xyxy[non_degenerate_mask], box_cxcywh_to_xyxy(tgt_bbox))
 
         # Set costs for all bounding boxes, adjust max costs
+        # Issue with infinite costs: https://github.com/ultralytics/ultralytics/issues/4711#issuecomment-1705011229
         cost_shape = (n_predictions, n_targets)
 
         max_cost_bbox = cost_bbox_valid.max().item() + 100
