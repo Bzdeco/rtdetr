@@ -15,9 +15,6 @@ from .box_ops import box_cxcywh_to_xyxy, generalized_box_iou
 from src.core import register
 
 
-MAX_COST = torch.inf
-
-
 @register
 class HungarianMatcher(nn.Module):
     """This class computes an assignment between the targets and the predictions of the network
@@ -80,7 +77,8 @@ class HungarianMatcher(nn.Module):
         n_predictions = len(out_bbox)
 
         # Filter out non-degenerate boxes
-        non_degenerate_mask = non_degenerate_bboxes_mask(box_cxcywh_to_xyxy(out_bbox))
+        out_bbox_xyxy = box_cxcywh_to_xyxy(out_bbox)
+        non_degenerate_mask = non_degenerate_bboxes_mask(out_bbox_xyxy)
         out_bbox_valid = out_bbox[non_degenerate_mask]
         out_prob_valid = out_prob[non_degenerate_mask]
 
@@ -104,16 +102,26 @@ class HungarianMatcher(nn.Module):
         cost_bbox_valid = torch.cdist(out_bbox_valid, tgt_bbox, p=1)
 
         # Compute the giou cost betwen boxes
-        cost_giou_valid = -generalized_box_iou(box_cxcywh_to_xyxy(out_bbox_valid), box_cxcywh_to_xyxy(tgt_bbox))
+        cost_giou_valid = -generalized_box_iou(out_bbox_xyxy[non_degenerate_mask], box_cxcywh_to_xyxy(tgt_bbox))
 
-        # Set costs for all bounding boxes
+        # Set costs for all bounding boxes, adjust max costs
         cost_shape = (n_predictions, n_targets)
-        cost_bbox = torch.full(cost_shape, fill_value=MAX_COST, device=cost_bbox_valid.device)
+
+        max_cost_bbox = cost_bbox_valid.max().item() + 100
+        cost_bbox = torch.full(cost_shape, fill_value=max_cost_bbox, device=cost_bbox_valid.device)
         cost_bbox[non_degenerate_mask, :] = cost_bbox_valid
-        cost_class = torch.full(cost_shape, fill_value=MAX_COST, device=cost_class_valid.device)
+        cost_bbox[torch.logical_or(torch.isnan(cost_bbox), torch.isinf(cost_bbox))] = max_cost_bbox
+
+        max_cost_class = cost_class_valid.max().item() + 100
+        cost_class = torch.full(cost_shape, fill_value=max_cost_class, device=cost_class_valid.device)
         cost_class[non_degenerate_mask, :] = cost_class_valid
-        cost_giou = torch.full(cost_shape, fill_value=MAX_COST, device=cost_giou_valid.device)
+        cost_class[torch.logical_or(torch.isnan(cost_class), torch.isinf(cost_class))] = max_cost_class
+
+        max_cost_giou = cost_giou_valid.max().item() + 100
+        cost_giou = torch.full(cost_shape, fill_value=max_cost_giou, device=cost_giou_valid.device)
         cost_giou[non_degenerate_mask, :] = cost_giou_valid
+        cost_giou[torch.logical_or(torch.isnan(cost_giou), torch.isinf(cost_giou))] = max_cost_giou
+        print("max costs", max_cost_bbox, max_cost_class, max_cost_giou)
         
         # Final cost matrix
         C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
