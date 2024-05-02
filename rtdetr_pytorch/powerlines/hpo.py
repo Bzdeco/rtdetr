@@ -31,7 +31,7 @@ def create_neptune_hpo_run(config: DictConfig, debug: bool = False) -> Run:
         capture_stderr=True,
         capture_traceback=False,
         capture_hardware_metrics=True,
-        flush_period=300
+        flush_period=10
     )
 
 

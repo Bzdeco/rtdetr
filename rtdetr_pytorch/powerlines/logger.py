@@ -21,7 +21,7 @@ def create_neptune_run(name: str, resume: bool = False, from_run_id: Optional[in
         capture_stderr=True,
         capture_traceback=True,
         capture_hardware_metrics=True,
-        flush_period=300,
+        flush_period=10,
         source_files=[]  # do not log source code
     )
 
