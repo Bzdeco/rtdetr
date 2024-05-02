@@ -46,6 +46,12 @@ def train_one_epoch(config: DictConfig, model: torch.nn.Module, criterion: torch
                 loss_dict = criterion(outputs, targets)
 
             loss = sum(loss_dict.values())
+            if not torch.isfinite(loss):
+                # Skip this batch if anything in the outputs is NaN
+                print("Non-finite value in loss, skipping iteration")
+                optimizer.zero_grad()
+                continue
+
             scaler.scale(loss).backward()
 
             if max_norm > 0:
