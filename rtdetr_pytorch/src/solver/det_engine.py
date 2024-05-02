@@ -77,9 +77,7 @@ def train_one_epoch(config: DictConfig, model: torch.nn.Module, criterion: torch
         loss_value = sum(loss_dict_reduced.values())
 
         if not math.isfinite(loss_value):
-            print("Loss is {}, stopping training".format(loss_value))
-            print(loss_dict_reduced)
-            sys.exit(1)
+            raise RuntimeError(f"Loss is {loss_value}, stopping training: {loss_dict_reduced}")
 
         metrics_tracker.update(loss=loss_value, **loss_dict_reduced)
         metrics_tracker.update(lr=optimizer.param_groups[0]["lr"])
