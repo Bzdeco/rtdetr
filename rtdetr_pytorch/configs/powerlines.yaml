@@ -1,4 +1,5 @@
 name: rt-detr-poles
+cv_name: null
 
 epochs: 30
 optimized_metric: "metrics/val/ccq/masked/quality/0.004"  # set by the HPO script

@@ -1,5 +1,6 @@
 """by lyuwenyu and Bzdeco
 """
+import argparse
 from typing import Optional
 
 from powerlines.data.seed import set_global_seeds
@@ -40,4 +41,15 @@ def run_training(cfg_powerlines: DictConfig) -> Optional[float]:  # optimized me
 
 
 if __name__ == '__main__':
-    run_training(powerlines_config())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fold", required=False, type=int)
+    args = parser.parse_args()
+
+    powerlines_cfg = powerlines_config()
+    if args.fold is not None:
+        fold = int(args.fold)
+        powerlines_cfg.cv_name = powerlines_cfg.name
+        powerlines_cfg.name = f"{powerlines_cfg.name}-fold-{fold}"
+        powerlines_cfg.data.cv.fold = fold
+
+    run_training(powerlines_cfg)
