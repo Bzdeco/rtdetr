@@ -83,7 +83,7 @@ class SetCriterion(nn.Module):
 
         target = F.one_hot(target_classes, num_classes=self.num_classes + 1)[..., :-1]
         loss = F.binary_cross_entropy_with_logits(src_logits, target * 1., reduction='none')
-        loss = loss.mean(1).sum() * src_logits.shape[1] / num_boxes
+        loss = loss.mean(1).sum() * src_logits.shape[1] / max(num_boxes, 1e-12)
         return {'loss_bce': loss}
 
     def loss_labels_focal(self, outputs, targets, indices, num_boxes, log=True):
@@ -104,7 +104,7 @@ class SetCriterion(nn.Module):
         # loss = alpha_t * ce_loss * ((1 - p_t) ** self.gamma)
         # loss = loss.mean(1).sum() * src_logits.shape[1] / num_boxes
         loss = torchvision.ops.sigmoid_focal_loss(src_logits, target, self.alpha, self.gamma, reduction='none')
-        loss = loss.mean(1).sum() * src_logits.shape[1] / num_boxes
+        loss = loss.mean(1).sum() * src_logits.shape[1] / max(num_boxes, 1e-12)
 
         return {'loss_focal': loss}
 
@@ -132,7 +132,7 @@ class SetCriterion(nn.Module):
         weight = self.alpha * pred_score.pow(self.gamma) * (1 - target) + target_score
         
         loss = F.binary_cross_entropy_with_logits(src_logits, target_score, weight=weight, reduction='none')
-        loss = loss.mean(1).sum() * src_logits.shape[1] / num_boxes
+        loss = loss.mean(1).sum() * src_logits.shape[1] / max(num_boxes, 1e-12)
         return {'loss_vfl': loss}
 
     @torch.no_grad()
@@ -162,12 +162,12 @@ class SetCriterion(nn.Module):
         losses = {}
 
         loss_bbox = F.l1_loss(src_boxes, target_boxes, reduction='none')
-        losses['loss_bbox'] = loss_bbox.sum() / num_boxes
+        losses['loss_bbox'] = loss_bbox.sum() / max(num_boxes, 1e-12)
 
         loss_giou = 1 - torch.diag(generalized_box_iou(
                 box_cxcywh_to_xyxy(src_boxes),
                 box_cxcywh_to_xyxy(target_boxes)))
-        losses['loss_giou'] = loss_giou.sum() / num_boxes
+        losses['loss_giou'] = loss_giou.sum() / max(num_boxes, 1e-12)
         return losses
 
     def loss_masks(self, outputs, targets, indices, num_boxes):
