@@ -30,7 +30,7 @@ data:
     train: null
     val: null
   num_workers:
-    train: 8
+    train: 2
     val: 2
 
 optimizer:
@@ -64,7 +64,7 @@ sahi:
     - 512
     - 1024
   predict_on_full_image: true
-  batch_size: 8
+  batch_size: 20
   min_score: 0.5
 
 validation:
