@@ -30,7 +30,7 @@ data:
     train: null
     val: null
   num_workers:
-    train: 2
+    train: 8
     val: 2
 
 optimizer:
