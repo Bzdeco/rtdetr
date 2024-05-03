@@ -1,4 +1,4 @@
-name: rt-detr-poles
+name: tuned-rtdetr-poles
 cv_name: null
 
 epochs: 30
