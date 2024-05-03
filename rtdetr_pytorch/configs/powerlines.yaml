@@ -12,15 +12,15 @@ checkpoint:
 
 data:
   augmentations:
-    cj_magnitude: 0.2
-    multi_scale_prob: 0.5
+    cj_magnitude: 0.04839285536549887
+    multi_scale_prob: 0.07515240860675335
 
   downsampling_factor: 32
   patch_size: 1024
-  perturbation: 384
-  negative_sample_prob: 0.12
+  perturbation: 862  # 0.8419149769777584 * 1024
+  negative_sample_prob: 0.06411697670249089
   non_sky_bias: 0.5
-  batch_size: 16
+  batch_size: 2
   cv:
     num_folds: 5
     fold: null
@@ -34,10 +34,10 @@ data:
     val: 2
 
 optimizer:
-  lr: 0.0001
-  lr_backbone: 0.00001
+  lr: 0.000025974599147866065
+  lr_backbone: 0.000025465581928924347
   betas: [0.9, 0.999]
-  wd: 0.0001
+  wd: 0.017062527421800134
   params:
     - params: '^(?=.*backbone)(?=.*norm).*$'
       lr: ${optimizer.lr_backbone}
