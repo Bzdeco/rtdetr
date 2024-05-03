@@ -131,9 +131,9 @@ def evaluate(
         patch_predictions = []
         with torch.autocast(device_type=str(device), dtype=torch.float16, enabled=True, cache_enabled=True):
             for batch in batch_multiscale_patches(
-                multiscale_patches, batch_size=sahi_config.batch_size, preprocess=preprocess, device=device
+                multiscale_patches, batch_size=sahi_config.batch_size, preprocess=preprocess
             ):
-                batch_outputs = move_to_cpu(model(batch))
+                batch_outputs = move_to_cpu(model(batch.to(device)))
                 patch_predictions.extend(detection_postprocessor(
                     batch_outputs, torch.stack([ORIG_SIZE] * len(batch), dim=0)
                 ))
