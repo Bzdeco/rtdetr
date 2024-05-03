@@ -118,7 +118,6 @@ def evaluate(
     preprocess = inference_augmentations()
     iterator = tqdm(data_loader, desc="Validating") if config.verbose else data_loader
     for image, target in iterator:
-        image = image.to(device)
         target = target[0]
 
         sahi_config = config.sahi
@@ -132,7 +131,7 @@ def evaluate(
         patch_predictions = []
         with torch.autocast(device_type=str(device), dtype=torch.float16, enabled=True, cache_enabled=True):
             for batch in batch_multiscale_patches(
-                multiscale_patches, batch_size=sahi_config.batch_size, preprocess=preprocess
+                multiscale_patches, batch_size=sahi_config.batch_size, preprocess=preprocess, device=device
             ):
                 batch_outputs = move_to_cpu(model(batch))
                 patch_predictions.extend(detection_postprocessor(

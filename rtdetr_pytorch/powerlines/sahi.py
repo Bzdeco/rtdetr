@@ -154,14 +154,14 @@ def multiscale_image_patches(
 
 
 def batch_multiscale_patches(
-    multiscale_patches: MultiscalePatches, batch_size: int, preprocess: Callable
+    multiscale_patches: MultiscalePatches, batch_size: int, preprocess: Callable, device: torch.device
 ) -> List[torch.Tensor]:
     batches = []
     n_batches = int(math.ceil(len(multiscale_patches.patches) / batch_size))
 
     for b in range(n_batches):
         patches = multiscale_patches.patches[b * batch_size:(b + 1) * batch_size]
-        batch = torch.stack([preprocess(patch) for patch in patches], dim=0)
+        batch = torch.stack([preprocess(patch.to(device)) for patch in patches], dim=0)
         batches.append(batch)
 
     return batches
