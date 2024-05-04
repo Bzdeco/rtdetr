@@ -88,6 +88,8 @@ def train_one_epoch(config: DictConfig, model: torch.nn.Module, criterion: torch
         metrics_tracker.update(loss=loss_value, **loss_dict_reduced)
         metrics_tracker.update(lr=optimizer.param_groups[0]["lr"])
 
+        del samples, targets, outputs, loss_dict, loss_dict_reduced
+
     return {name: meter.global_avg for name, meter in metrics_tracker.meters.items()}
 
 
