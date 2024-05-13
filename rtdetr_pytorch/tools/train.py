@@ -43,9 +43,18 @@ def run_training(cfg_powerlines: DictConfig) -> Optional[float]:  # optimized me
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--fold", required=False, type=int)
+    parser.add_argument("--resume", required=False, type=int)
+    parser.add_argument("--resume_epoch", required=False, type=int)
     args = parser.parse_args()
 
     powerlines_cfg = powerlines_config()
+    if args.resume is not None:
+        assert args.resume_epoch is not None, "--resume_epoch must be specified when resuming the run"
+
+        powerlines_cfg.checkpoint.resume = True
+        powerlines_cfg.checkpoint.run_id = args.resume
+        powerlines_cfg.checkpoint.epoch = args.resume_epoch
+
     if args.fold is not None:
         fold = int(args.fold)
         powerlines_cfg.cv_name = powerlines_cfg.name
