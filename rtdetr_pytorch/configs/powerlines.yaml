@@ -2,7 +2,7 @@ name: tuned-rtdetr-poles
 cv_name: null
 
 epochs: 30
-validate_epochs: 15
+validate_epochs: 16
 optimized_metric: "metrics/val/ccq/masked/quality/0.004"  # set by the HPO script
 verbose: false
 
