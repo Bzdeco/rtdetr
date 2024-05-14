@@ -47,8 +47,9 @@ def run_validation(run_id: int, cfg_powerlines: DictConfig) -> None:
         cfg_powerlines.checkpoint.resume = True
         cfg_powerlines.checkpoint.run_id = run_id
         cfg_powerlines.checkpoint.epoch = epoch
+
         solver = DetSolver(rt_detr_config(), cfg_powerlines)
-        return solver.val(epoch)
+        solver.val(epoch)
 
 
 if __name__ == '__main__':

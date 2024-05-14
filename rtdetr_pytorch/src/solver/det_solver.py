@@ -106,6 +106,8 @@ class DetSolver(BaseSolver):
             return best_metric_value
 
     def val(self, epoch: int):
+        self.eval()
+
         model = self.ema.module if self.ema else self.model
         val_stats = evaluate(
             epoch, self.cfg_powerlines, model, self.criterion, self.postprocessor, self.val_dataloader, self.device, self.run

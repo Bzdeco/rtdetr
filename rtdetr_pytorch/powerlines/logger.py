@@ -17,11 +17,11 @@ def create_neptune_run(name: str, resume: bool = False, from_run_id: Optional[in
         with_id=with_id,
         name=run_name,
         mode="async",
-        capture_stdout=True,
-        capture_stderr=True,
-        capture_traceback=True,
-        capture_hardware_metrics=True,
-        flush_period=10,
+        capture_stdout=False,
+        capture_stderr=False,
+        capture_traceback=False,
+        capture_hardware_metrics=False,
+        flush_period=300,
         source_files=[]  # do not log source code
     )
 
