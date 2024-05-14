@@ -218,5 +218,5 @@ class BaseSolver(object):
     def fit(self):
         raise NotImplementedError
 
-    def val(self):
+    def val(self, epoch: int):
         raise NotImplementedError

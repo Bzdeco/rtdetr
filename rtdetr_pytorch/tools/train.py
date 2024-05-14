@@ -34,10 +34,21 @@ def powerlines_config() -> DictConfig:
 def run_training(cfg_powerlines: DictConfig) -> Optional[float]:  # optimized metric value
     dist.init_distributed()
 
-    # Create and configure solver
-    cfg = rt_detr_config()
-    solver = DetSolver(cfg, cfg_powerlines)
+    solver = DetSolver(rt_detr_config(), cfg_powerlines)
     return solver.fit()
+
+
+def run_validation(run_id: int, cfg_powerlines: DictConfig) -> None:
+    dist.init_distributed()
+
+    print(f"Validating run {run_id}")
+    for epoch in range(cfg_powerlines.validate_epochs):
+        print(f"e={epoch}")
+        cfg_powerlines.checkpoint.resume = True
+        cfg_powerlines.checkpoint.run_id = run_id
+        cfg_powerlines.checkpoint.epoch = epoch
+        solver = DetSolver(rt_detr_config(), cfg_powerlines)
+        return solver.val(epoch)
 
 
 if __name__ == '__main__':
@@ -45,15 +56,10 @@ if __name__ == '__main__':
     parser.add_argument("--fold", required=False, type=int)
     parser.add_argument("--resume", required=False, type=int)
     parser.add_argument("--resume_epoch", required=False, type=int)
+    parser.add_argument("--validate_run", required=False, type=int)
     args = parser.parse_args()
 
     powerlines_cfg = powerlines_config()
-    if args.resume is not None:
-        assert args.resume_epoch is not None, "--resume_epoch must be specified when resuming the run"
-
-        powerlines_cfg.checkpoint.resume = True
-        powerlines_cfg.checkpoint.run_id = args.resume
-        powerlines_cfg.checkpoint.epoch = args.resume_epoch
 
     if args.fold is not None:
         fold = int(args.fold)
@@ -61,4 +67,13 @@ if __name__ == '__main__':
         powerlines_cfg.name = f"{powerlines_cfg.name}-fold-{fold}"
         powerlines_cfg.data.cv.fold = fold
 
-    run_training(powerlines_cfg)
+    if args.validate_run is None:
+        if args.resume is not None:
+            assert args.resume_epoch is not None, "--resume_epoch must be specified when resuming the run"
+            powerlines_cfg.checkpoint.resume = True
+            powerlines_cfg.checkpoint.run_id = args.resume
+            powerlines_cfg.checkpoint.epoch = args.resume_epoch
+
+        run_training(powerlines_cfg)
+    else:
+        run_validation(args.validate_run, powerlines_cfg)

@@ -190,8 +190,16 @@ class CCQMetric:
         qual = quality(self._tp, self._fp, self._fn)
         thresholds = self._bin_thresholds / MAX_DISTANCE_MASK_VALUE
 
-        for metric_name, values in zip(["correctness", "completeness", "quality"], [corr, compl, qual]):
+        if self._tolerance_region > 0:
+            for metric_name, values in zip(["correctness", "completeness", "quality"], [corr, compl, qual]):
+                for i, threshold in enumerate(thresholds):
+                    results[f"{metric_name}/{threshold:.3f}"] = values[i]
+        else:
             for i, threshold in enumerate(thresholds):
-                results[f"{metric_name}/{threshold:.3f}"] = values[i]
+                precision = corr[i]
+                recall = compl[i]
+                results[f"precision/{threshold:.3f}"] = precision
+                results[f"recall/{threshold:.3f}"] = recall
+                results[f"f1/{threshold:.3f}"] = 2 * precision * recall / (precision + recall + 1e-8)
 
         return results

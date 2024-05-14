@@ -31,9 +31,9 @@ def format_stats_as_flat_metrics_dict(subset: str, stats: Dict[str, Any]) -> Dic
     return metrics
 
 
-def log_metrics(run: neptune.Run, metrics: Dict[str, Any]):
+def log_metrics(run: neptune.Run, metrics: Dict[str, Any], epoch: Optional[int] = None):
     for metric, value in metrics.items():
-        run[metric].log(value)
+        run[metric].append(value, step=epoch)
 
 
 class DetSolver(BaseSolver):
@@ -105,12 +105,10 @@ class DetSolver(BaseSolver):
         else:
             return best_metric_value
 
-    def val(self):
-        self.eval()
-
+    def val(self, epoch: int):
         model = self.ema.module if self.ema else self.model
         val_stats = evaluate(
-            0, self.cfg_powerlines, model, self.criterion, self.postprocessor, self.val_dataloader, self.device, self.run
+            epoch, self.cfg_powerlines, model, self.criterion, self.postprocessor, self.val_dataloader, self.device, self.run
         )
         val_metrics = format_stats_as_flat_metrics_dict("val", val_stats)
-        log_metrics(self.run, val_metrics)
+        log_metrics(self.run, val_metrics, epoch)
