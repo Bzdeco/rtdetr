@@ -68,7 +68,7 @@ class DetSolver(BaseSolver):
 
             # Log train metrics and checkpoint
             train_metrics = format_stats_as_flat_metrics_dict("train", train_stats)
-            log_metrics(self.run, train_metrics)
+            log_metrics(self.run, train_metrics, epoch)
             self.save_checkpoint(epoch)
 
             # Validate
@@ -85,7 +85,7 @@ class DetSolver(BaseSolver):
                     self.run
                 )
                 val_metrics = format_stats_as_flat_metrics_dict("val", val_stats)
-                log_metrics(self.run, val_metrics)
+                log_metrics(self.run, val_metrics, epoch)
                 best_metric_value = max(best_metric_value, val_metrics[self.cfg_powerlines.optimized_metric])
 
         if self.cfg_powerlines.validation.last:
@@ -101,7 +101,7 @@ class DetSolver(BaseSolver):
                 self.run
             )
             val_metrics = format_stats_as_flat_metrics_dict("val", val_stats)
-            log_metrics(self.run, val_metrics)
+            log_metrics(self.run, val_metrics, epoch)
             return val_metrics[self.cfg_powerlines.optimized_metric]
         else:
             return best_metric_value
