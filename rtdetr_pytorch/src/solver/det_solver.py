@@ -89,8 +89,9 @@ class DetSolver(BaseSolver):
                 best_metric_value = max(best_metric_value, val_metrics[self.cfg_powerlines.optimized_metric])
 
         if self.cfg_powerlines.validation.last:
+            model = self.ema.module if self.ema else self.model
             val_stats = evaluate(
-                epoch,
+                n_epochs - 1,
                 self.cfg_powerlines,
                 model,
                 self.criterion,

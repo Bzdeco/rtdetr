@@ -109,11 +109,11 @@ def evaluate(
     criterion.eval()
 
     # Create mAP and CCQ metrics
-    # map_all = mean_average_precision()
-    # map_exclusion_zones = mean_average_precision()
+    map_all = mean_average_precision()
+    map_exclusion_zones = mean_average_precision()
     downsampling_factor = config.data.downsampling_factor
-    # ccq_all = ccq(downsampling_factor=downsampling_factor, mask_exclusion_zones=False)
-    # ccq_exclusion_zones = ccq(downsampling_factor=downsampling_factor, mask_exclusion_zones=True)
+    ccq_all = ccq(downsampling_factor=downsampling_factor, mask_exclusion_zones=False)
+    ccq_exclusion_zones = ccq(downsampling_factor=downsampling_factor, mask_exclusion_zones=True)
     prf1_all = prf1(downsampling_factor=downsampling_factor, mask_exclusion_zones=False)
     prf1_exclusion_zones = prf1(downsampling_factor=downsampling_factor, mask_exclusion_zones=True)
 
@@ -157,23 +157,21 @@ def evaluate(
         target_excl_zones, target_not_excluded = remove_detections_in_exclusion_zone(
             target, exclusion_zone, return_mask=True
         )
-        # _ = map_exclusion_zones([prediction_excl_zones], [target_excl_zones])
+        _ = map_exclusion_zones([prediction_excl_zones], [target_excl_zones])
         logger.visualize(epoch, image.detach().cpu(), prediction, target, pred_not_excluded, target_not_excluded)
 
         # Metrics without exclusion zones
-        # _ = map_all([prediction], [target])
-        # ccq_all(prediction, target)
-        # ccq_exclusion_zones(prediction, target)  # exclusion zones handled inside the metric, could do it alternatively here
+        _ = map_all([prediction], [target])
+        ccq_all(prediction, target)
+        ccq_exclusion_zones(prediction, target)  # exclusion zones handled inside the metric, could do it alternatively here
         prf1_all(prediction, target)
         prf1_exclusion_zones(prediction, target)
 
-    # return {
-    #     "metrics/map/all": dict(map_all.compute()),
-    #     "metrics/map/masked": dict(map_exclusion_zones.compute()),
-    #     "metrics/ccq/all": ccq_all.compute(),
-    #     "metrics/ccq/masked": ccq_exclusion_zones.compute()
-    # }
     return {
+        "metrics/map/all": dict(map_all.compute()),
+        "metrics/map/masked": dict(map_exclusion_zones.compute()),
+        "metrics/ccq/all": ccq_all.compute(),
+        "metrics/ccq/masked": ccq_exclusion_zones.compute(),
         "metrics/prf/all": prf1_all.compute(),
         "metrics/prf/masked": prf1_exclusion_zones.compute()
     }
