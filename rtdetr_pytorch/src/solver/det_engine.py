@@ -6,7 +6,6 @@ by lyuwenyu
 """
 
 import math
-import sys
 from typing import Iterable, Callable, Dict
 
 import torch
@@ -108,6 +107,10 @@ def evaluate(
     model.eval()
     criterion.eval()
 
+    # SAHI
+    sahi_config = config.sahi
+    single_scale = len(sahi_config.patch_sizes) == 1
+
     # Create mAP and CCQ metrics
     map_all = mean_average_precision()
     map_exclusion_zones = mean_average_precision()
@@ -124,7 +127,6 @@ def evaluate(
     for image, target in iterator:
         target = target[0]
 
-        sahi_config = config.sahi
         multiscale_patches = multiscale_image_patches(
             image,
             patch_sizes=sahi_config.patch_sizes,
@@ -167,13 +169,14 @@ def evaluate(
         prf1_all(prediction, target)
         prf1_exclusion_zones(prediction, target)
 
+    prefix = "single_scale/" if single_scale else ""
     return {
-        "metrics/map/all": dict(map_all.compute()),
-        "metrics/map/masked": dict(map_exclusion_zones.compute()),
-        "metrics/ccq/all": ccq_all.compute(),
-        "metrics/ccq/masked": ccq_exclusion_zones.compute(),
-        "metrics/prf/all": prf1_all.compute(),
-        "metrics/prf/masked": prf1_exclusion_zones.compute()
+        f"metrics/{prefix}map/all": dict(map_all.compute()),
+        f"metrics/{prefix}map/masked": dict(map_exclusion_zones.compute()),
+        f"metrics/{prefix}ccq/all": ccq_all.compute(),
+        f"metrics/{prefix}ccq/masked": ccq_exclusion_zones.compute(),
+        f"metrics/{prefix}prf/all": prf1_all.compute(),
+        f"metrics/{prefix}prf/masked": prf1_exclusion_zones.compute()
     }
 
 
