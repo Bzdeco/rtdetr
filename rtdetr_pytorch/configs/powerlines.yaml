@@ -2,7 +2,7 @@ name: tuned-rtdetr-poles
 cv_name: null
 
 epochs: 35
-validate_epochs: 25
+validate_epochs: 35
 optimized_metric: "metrics/val/single_scale/ccq/masked/quality/0.004"  # set by the HPO script
 verbose: false
 
@@ -61,8 +61,8 @@ paths:
 sahi:
   step_size_fraction: 0.8
   patch_sizes:
-#    - 256
-#    - 512
+    - 256
+    - 512
     - 1024
   predict_on_full_image: true
   batch_size: 20
@@ -74,4 +74,4 @@ validation:
 
 visualization:
   n_images_per_epoch: 0
-  every: 1
+  every: 100
