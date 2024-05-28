@@ -61,16 +61,16 @@ paths:
 sahi:
   step_size_fraction: 0.8
   patch_sizes:
-    - 256
-    - 512
+#    - 256
+#    - 512
     - 1024
   predict_on_full_image: true
   batch_size: 20
   min_score: 0.5
 
 validation:
-  every: true
-  last: false
+  every: false
+  last: true
 
 visualization:
   n_images_per_epoch: 0
