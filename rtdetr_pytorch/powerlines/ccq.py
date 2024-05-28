@@ -131,8 +131,8 @@ def boxes_to_downsampled_distance_mask(boxes: np.ndarray, downsampling_factor: i
 
     poles_mask = np.zeros(target_size, dtype=bool)
     for box in boxes_down:
-        x0, y0, x1, y1 = box
-        poles_mask[y0:(y1 + 1), x0:(x1 + 1)] = True
+        left, top, right, bottom = box
+        poles_mask[int(top):int(bottom), int(left):int(right)] = True
 
     return distance_transform(poles_mask)
 
