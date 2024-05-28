@@ -303,6 +303,11 @@ def compute_extended_frame_padding(image_size: Tuple[int, ...], downsampling_fac
     return pad_bottom, pad_right
 
 
+def pad_tensor_to_match_target_size(tensor: torch.Tensor, downsampling_factor: int, padding_value: float) -> torch.Tensor:
+    pad_bottom, pad_right = compute_extended_frame_padding(tensor.shape, downsampling_factor)
+    return torch.nn.functional.pad(tensor, (0, pad_right, 0, pad_bottom), mode="constant", value=padding_value)
+
+
 def num_side_patches(side_size: int, patch_size: int, step_size: int) -> int:
     return int(math.ceil((side_size - patch_size) / step_size)) + 1
 

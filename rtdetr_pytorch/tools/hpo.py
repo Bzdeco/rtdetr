@@ -161,7 +161,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", required=True)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--metric", default="metrics/val/ccq/masked/quality/0.012")  # i.e. 1.5 pixel
+    parser.add_argument("--metric", default="metrics/val/single_scale/ccq/masked/quality/0.012")  # i.e. 1.5 pixel
     parser.add_argument("--n_trials", default=500)
     parser.add_argument("--n_workers", default=1)
     parser.add_argument("--min_epochs", default=2)

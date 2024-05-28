@@ -42,7 +42,7 @@ def run_validation(run_id: int, cfg_powerlines: DictConfig) -> None:
     dist.init_distributed()
 
     print(f"Validating run {run_id}")
-    for epoch in range(25, cfg_powerlines.validate_epochs):
+    for epoch in range(cfg_powerlines.validate_epochs):
         print(f"e={epoch}")
         cfg_powerlines.checkpoint.resume = True
         cfg_powerlines.checkpoint.run_id = run_id

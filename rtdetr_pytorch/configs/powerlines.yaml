@@ -3,7 +3,7 @@ cv_name: null
 
 epochs: 35
 validate_epochs: 35
-optimized_metric: "metrics/val/single_scale/ccq/masked/quality/0.004"  # set by the HPO script
+optimized_metric: "metrics/val/single_scale/ccq/masked/quality/0.012"  # set by the HPO script
 verbose: false
 
 checkpoint:

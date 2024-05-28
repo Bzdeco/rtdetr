@@ -127,7 +127,7 @@ def visualize_distance_masks(pred_distance_mask: np.ndarray, target_distance_mas
 
 def boxes_to_downsampled_distance_mask(boxes: np.ndarray, downsampling_factor: int) -> np.ndarray:
     target_size = (int(math.ceil(3000 / downsampling_factor)), int(math.ceil(4096 / downsampling_factor)))
-    boxes_down = np.floor(boxes / downsampling_factor).astype(int)
+    boxes_down = boxes / downsampling_factor
 
     poles_mask = np.zeros(target_size, dtype=bool)
     for box in boxes_down:

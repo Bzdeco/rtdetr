@@ -8,8 +8,6 @@ import yaml
 from torch import nn
 from tqdm import tqdm
 
-from powerlines.data.utils import compute_extended_frame_padding
-
 
 def load_yaml(filepath: Path) -> Dict[str, Any]:
     with filepath.open() as file:
@@ -27,11 +25,6 @@ def parallelize(
     # Using executor, additionally with tqdm: https://stackoverflow.com/a/52242947
     with concurrent_executor(max_workers=num_workers) as executor:
         return list(tqdm(executor.map(function, data), total=len(list(data)), desc=description))
-
-
-def pad_tensor_to_match_target_size(tensor: torch.Tensor, downsampling_factor: int, padding_value: float) -> torch.Tensor:
-    pad_bottom, pad_right = compute_extended_frame_padding(tensor.shape, downsampling_factor)
-    return torch.nn.functional.pad(tensor, (0, pad_right, 0, pad_bottom), mode="constant", value=padding_value)
 
 
 class MinPoolingDownsampler(nn.Module):
