@@ -56,7 +56,7 @@ lr_scheduler:
 
 paths:
   complete_frames: /scratch/cvlab/home/gwizdala/dataset/processed/daedalean/complete_frames
-  annotations: /scratch/cvlab/home/gwizdala/dataset/daedalean/cable-annotations
+  annotations: /scratch/cvlab/home/gwizdala/dataset/daedalean/annotations
 
 sahi:
   step_size_fraction: 0.8
