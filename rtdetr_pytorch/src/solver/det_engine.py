@@ -8,6 +8,7 @@ by lyuwenyu
 import math
 from typing import Iterable, Callable, Dict
 
+import numpy as np
 import torch
 import torch.amp
 from neptune import Run
@@ -109,14 +110,23 @@ def evaluate(
     sahi_config = config.sahi
     single_scale = len(sahi_config.patch_sizes) == 1
 
-    # Create mAP and CCQ metrics
-    map_all = mean_average_precision()
-    map_exclusion_zones = mean_average_precision()
+    # Create mAP and CCQ metrics for each min_score
+    min_scores = np.linspace(0.05, 0.95, num=19)
+    map_all = {min_score: mean_average_precision() for min_score in min_scores}
+    map_exclusion_zones = {min_score: mean_average_precision() for min_score in min_scores}
     downsampling_factor = config.data.downsampling_factor
-    ccq_all = ccq(downsampling_factor=downsampling_factor, mask_exclusion_zones=False)
-    ccq_exclusion_zones = ccq(downsampling_factor=downsampling_factor, mask_exclusion_zones=True)
-    prf1_all = prf1(downsampling_factor=downsampling_factor, mask_exclusion_zones=False)
-    prf1_exclusion_zones = prf1(downsampling_factor=downsampling_factor, mask_exclusion_zones=True)
+    ccq_all = {
+        min_score: ccq(downsampling_factor=downsampling_factor, mask_exclusion_zones=False) for min_score in min_scores
+    }
+    ccq_exclusion_zones = {
+        min_score: ccq(downsampling_factor=downsampling_factor, mask_exclusion_zones=True) for min_score in min_scores
+    }
+    prf1_all = {
+        min_score: prf1(downsampling_factor=downsampling_factor, mask_exclusion_zones=False) for min_score in min_scores
+    }
+    prf1_exclusion_zones = {
+        min_score: prf1(downsampling_factor=downsampling_factor, mask_exclusion_zones=True) for min_score in min_scores
+    }
 
     logger = VisualizationLogger(run, config)
 
@@ -142,40 +152,48 @@ def evaluate(
                     batch_outputs, torch.stack([ORIG_SIZE] * len(batch), dim=0)
                 ))
 
-        prediction = sahi_combine_predictions_to_full_resolution(
-            patch_predictions,
-            multiscale_patches.shifts,
-            multiscale_patches.patch_sizes,
-            min_score=sahi_config.min_score
-        )
-
-        # Consider exclusion zones in predictions and targets, if present
         exclusion_zone = target["exclusion_zone"]
-        prediction_excl_zones, pred_not_excluded = remove_detections_in_exclusion_zone(
-            prediction, exclusion_zone, return_mask=True
-        )
-        target_excl_zones, target_not_excluded = remove_detections_in_exclusion_zone(
-            target, exclusion_zone, return_mask=True
-        )
-        _ = map_exclusion_zones([prediction_excl_zones], [target_excl_zones])
-        logger.visualize(epoch, image.detach().cpu(), prediction, target, pred_not_excluded, target_not_excluded)
+        for min_score in min_scores:
+            prediction = sahi_combine_predictions_to_full_resolution(
+                patch_predictions,
+                multiscale_patches.shifts,
+                multiscale_patches.patch_sizes,
+                min_score=min_score
+            )
 
-        # Metrics without exclusion zones
-        _ = map_all([prediction], [target])
-        ccq_all(prediction, target)
-        ccq_exclusion_zones(prediction, target)  # exclusion zones handled inside the metric, could do it alternatively here
-        prf1_all(prediction, target)
-        prf1_exclusion_zones(prediction, target)
+            # Consider exclusion zones in predictions and targets, if present
+            prediction_excl_zones, pred_not_excluded = remove_detections_in_exclusion_zone(
+                prediction, exclusion_zone, return_mask=True
+            )
+            target_excl_zones, target_not_excluded = remove_detections_in_exclusion_zone(
+                target, exclusion_zone, return_mask=True
+            )
+            _ = map_exclusion_zones[min_score]([prediction_excl_zones], [target_excl_zones])
+            logger.visualize(epoch, image.detach().cpu(), prediction, target, pred_not_excluded, target_not_excluded)
+
+            # Metrics without exclusion zones
+            _ = map_all[min_score]([prediction], [target])
+            ccq_all[min_score](prediction, target)
+            # exclusion zones handled inside the metric, could do it alternatively here
+            ccq_exclusion_zones[min_score](prediction, target)
+            prf1_all[min_score](prediction, target)
+            prf1_exclusion_zones[min_score](prediction, target)
 
     prefix = "single_scale/" if single_scale else ""
-    return {
-        f"metrics/{prefix}map/all": dict(map_all.compute()),
-        f"metrics/{prefix}map/masked": dict(map_exclusion_zones.compute()),
-        f"metrics/{prefix}ccq/all": ccq_all.compute(),
-        f"metrics/{prefix}ccq/masked": ccq_exclusion_zones.compute(),
-        f"metrics/{prefix}prf/all": prf1_all.compute(),
-        f"metrics/{prefix}prf/masked": prf1_exclusion_zones.compute()
-    }
+    results = {}
+
+    for min_score in min_scores:
+        results = {
+            **results,
+            f"metrics/{prefix}map/all/{min_score:.2f}": dict(map_all[min_score].compute()),
+            f"metrics/{prefix}map/masked/{min_score:.2f}": dict(map_exclusion_zones[min_score].compute()),
+            f"metrics/{prefix}ccq/all/{min_score:.2f}": ccq_all[min_score].compute(),
+            f"metrics/{prefix}ccq/masked/{min_score:.2f}": ccq_exclusion_zones[min_score].compute(),
+            f"metrics/{prefix}prf/all/{min_score:.2f}": prf1_all[min_score].compute(),
+            f"metrics/{prefix}prf/masked/{min_score:.2f}": prf1_exclusion_zones[min_score].compute()
+        }
+
+    return results
 
 
 def move_to_cpu(tensor_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:

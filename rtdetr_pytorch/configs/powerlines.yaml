@@ -1,5 +1,5 @@
-name: tuned-rtdetr-poles
-cv_name: null
+name: tuned-rtdetr-poles-multi-scores
+cv_name: tuned-rtdetr-poles-multi-scores
 
 epochs: 35
 validate_epochs: 35
