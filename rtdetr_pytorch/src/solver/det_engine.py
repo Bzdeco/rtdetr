@@ -185,12 +185,12 @@ def evaluate(
     for min_score in min_scores:
         results = {
             **results,
-            f"metrics/{prefix}map/all/{min_score:.2f}": dict(map_all[min_score].compute()),
-            f"metrics/{prefix}map/masked/{min_score:.2f}": dict(map_exclusion_zones[min_score].compute()),
-            f"metrics/{prefix}ccq/all/{min_score:.2f}": ccq_all[min_score].compute(),
-            f"metrics/{prefix}ccq/masked/{min_score:.2f}": ccq_exclusion_zones[min_score].compute(),
-            f"metrics/{prefix}prf/all/{min_score:.2f}": prf1_all[min_score].compute(),
-            f"metrics/{prefix}prf/masked/{min_score:.2f}": prf1_exclusion_zones[min_score].compute()
+            f"metrics/{prefix}map/all/min_score/{min_score:.2f}": dict(map_all[min_score].compute()),
+            f"metrics/{prefix}map/masked/min_score/{min_score:.2f}": dict(map_exclusion_zones[min_score].compute()),
+            f"metrics/{prefix}ccq/all/min_score/{min_score:.2f}": ccq_all[min_score].compute(),
+            f"metrics/{prefix}ccq/masked/min_score/{min_score:.2f}": ccq_exclusion_zones[min_score].compute(),
+            f"metrics/{prefix}prf/all/min_score/{min_score:.2f}": prf1_all[min_score].compute(),
+            f"metrics/{prefix}prf/masked/min_score/{min_score:.2f}": prf1_exclusion_zones[min_score].compute()
         }
 
     return results
