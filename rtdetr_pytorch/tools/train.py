@@ -38,11 +38,11 @@ def run_training(cfg_powerlines: DictConfig) -> Optional[float]:  # optimized me
     return solver.fit()
 
 
-def run_validation(run_id: int, cfg_powerlines: DictConfig) -> None:
+def run_validation(run_id: int, start_epoch: int, cfg_powerlines: DictConfig) -> None:
     dist.init_distributed()
 
     print(f"Validating run {run_id}")
-    for epoch in range(cfg_powerlines.validate_epochs):
+    for epoch in range(start_epoch, cfg_powerlines.validate_epochs):
         print(f"e={epoch}")
         cfg_powerlines.checkpoint.resume = True
         cfg_powerlines.checkpoint.run_id = run_id
@@ -77,4 +77,5 @@ if __name__ == '__main__':
 
         run_training(powerlines_cfg)
     else:
-        run_validation(args.validate_run, powerlines_cfg)
+        resume_epoch = args.resume_epoch or 0
+        run_validation(args.validate_run, resume_epoch, powerlines_cfg)
