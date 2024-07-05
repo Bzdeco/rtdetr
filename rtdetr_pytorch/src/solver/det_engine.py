@@ -111,7 +111,7 @@ def evaluate(
     single_scale = len(sahi_config.patch_sizes) == 1
 
     # Create mAP and CCQ metrics for each min_score
-    min_scores = np.linspace(0.05, 0.95, num=19)
+    min_scores = np.linspace(0.35, 0.80, num=10)
     map_all = {min_score: mean_average_precision() for min_score in min_scores}
     map_exclusion_zones = {min_score: mean_average_precision() for min_score in min_scores}
     downsampling_factor = config.data.downsampling_factor
