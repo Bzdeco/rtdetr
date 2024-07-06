@@ -1,8 +1,8 @@
 name: tuned-rtdetr-poles-multi-scores
 cv_name: tuned-rtdetr-poles-multi-scores
 
-epochs: 35
-validate_epochs: 35
+epochs: 45
+validate_epochs: 45
 optimized_metric: "metrics/val/single_scale/ccq/masked/quality/0.012"  # set by the HPO script
 verbose: false
 
